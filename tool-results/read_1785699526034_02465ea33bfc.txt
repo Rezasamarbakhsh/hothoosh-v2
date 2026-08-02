@@ -1,0 +1,502 @@
+     1→# Phase 6 — Backend Architecture
+     2→
+     3→## HotHoosh Enterprise AI Workspace — Complete Backend Architecture
+     4→
+     5→---
+     6→
+     7→## Table of Contents
+     8→
+     9→1. [Overview](#1-overview)
+    10→2. [Module Architecture](#2-module-architecture)
+    11→3. [Domain Event System](#3-domain-event-system)
+    12→4. [Authentication Flow](#4-authentication-flow)
+    13→5. [Authorization Architecture](#5-authorization-architecture)
+    14→6. [API Design](#6-api-design)
+    15→7. [LLM Router Engine](#7-llm-router-engine)
+    16→8. [Context Engine](#8-context-engine)
+    17→9. [RAG Engine](#9-rag-engine)
+    18→10. [Memory Engine](#10-memory-engine)
+    19→11. [Tool Engine](#11-tool-engine)
+    20→12. [Streaming Engine](#12-streaming-engine)
+    21→13. [Conversation Flow](#13-conversation-flow)
+    22→14. [Queue System](#14-queue-system)
+    23→15. [Infrastructure](#15-infrastructure)
+    24→16. [Error Handling](#16-error-handling)
+    25→17. [Configuration](#17-configuration)
+    26→18. [Security Implementation](#18-security-implementation)
+    27→
+    28→---
+    29→
+    30→## 1. Overview
+    31→
+    32→### 1.1 Architectural Philosophy
+    33→
+    34→HotHoosh's backend is built as a **NestJS modular monolith** with hexagonal module boundaries, as mandated by PRD Principle #15 and Engineering Rules §10.4.2. This means the entire backend runs as a single deployable unit, but internal module boundaries are strictly enforced as if each module were a separate microservice. Modules communicate exclusively through well-defined public APIs (injected services and domain events), never through shared mutable state or direct internal imports across module boundaries.
+    35→
+    36→The choice of modular monolith over microservices is deliberate and rooted in the team's operational capacity and the product's current scale requirements. A microservices architecture introduces distributed system complexity—network partitions, eventual consistency, distributed tracing, service mesh overhead—that is unnecessary for HotHoosh's v1.0 deployment target of ~100 organizations and ~10,000 concurrent users. The modular monolith preserves the ability to extract modules into separate services in the future (v2.0+) because hexagonal boundaries ensure low coupling and high cohesion within each domain module.
+    37→
+    38→### 1.2 Why Not Microservices
+    39→
+    40→| Factor | Modular Monolith | Microservices |
+    41→|--------|-----------------|---------------|
+    42→| Development velocity | Single codebase, single build, single deploy | Multiple codebases, independent builds |
+    43→| Operational complexity | Single process to monitor, scale, and debug | Multiple processes, service discovery, load balancing |
+    44→| Data consistency | Single PostgreSQL transaction spans all modules | Distributed transactions (Saga) or eventual consistency |
+    45→| Team size | 3–8 developers (current phase) | Requires 10+ developers for independent service ownership |
+    46→| Latency | In-process communication (nanoseconds) | Network communication (milliseconds) |
+    47→| Cost | Single instance to run | Multiple instances + infrastructure overhead |
+    48→| Future extraction | Hexagonal boundaries allow clean extraction | Already extracted |
+    49→
+    50→Per Engineering Rules §10.4.2, the modular monolith enforces the same architectural discipline as microservices at the code level, without paying the operational tax. Each domain module has a clear boundary defined by its controller, service, and repository layers. Internal implementation details are never exported. If a module needs to be extracted into a separate service in the future, the hexagonal boundary makes this a mechanical process rather than a rewrite.
+    51→
+    52→### 1.3 Technology Stack
+    53→
+    54→| Layer | Technology | Rationale |
+    55→|-------|-----------|-----------|
+    56→| Runtime | Node.js 20+ LTS | Non-blocking I/O for SSE streaming and concurrent AI requests |
+    57→| Framework | NestJS 10+ | DI container, module system, guard/filter/interceptor pipeline |
+    58→| ORM | TypeORM | PostgreSQL-native, custom repository support, migration tooling |
+    59→| Database | PostgreSQL 16+ | pgvector, RLS, JSONB, partitioned tables, full-text search |
+    60→| Cache/Queue | Redis 7+ | BullMQ job queues, session store, rate limiting, caching |
+    61→| Validation | Zod | Shared schemas between frontend and backend (§10.1.3) |
+    62→| File Storage | S3-compatible (MinIO) | Document storage for knowledge bases |
+    63→| Email | Nodemailer (SMTP) | Transactional emails for invitations, password resets |
+    64→| Streaming | Server-Sent Events (SSE) | One-directional real-time AI response streaming |
+    65→
+    66→---
+    67→
+    68→## 2. Module Architecture
+    69→
+    70→### 2.1 Module Map
+    71→
+    72→The backend is organized into two categories of modules: **12 domain modules** that own business entities and workflows, and **6 engine modules** that provide AI/ML infrastructure. All modules reside under `apps/api/src/` following the folder structure defined in Engineering Rules §10.2.4.
+    73→
+    74→```
+    75→apps/api/src/
+    76→├── modules/                          # Domain modules
+    77→│   ├── auth/
+    78→│   ├── users/
+    79→│   ├── organizations/
+    80→│   ├── companies/
+    81→│   ├── brands/
+    82→│   ├── workspaces/
+    83→│   ├── agents/
+    84→│   ├── chat/
+    85→│   ├── knowledge/
+    86→│   ├── memory/
+    87→│   ├── billing/
+    88→│   └── audit/
+    89→├── engines/                          # AI/ML engine modules
+    90→│   ├── llm-router/
+    91→│   ├── context-engine/
+    92→│   ├── rag-engine/
+    93→│   ├── memory-engine/
+    94→│   ├── tool-engine/
+    95→│   └── streaming-engine/
+    96→├── common/                           # Cross-cutting concerns
+    97→│   ├── decorators/
+    98→│   ├── filters/
+    99→│   ├── guards/
+   100→│   ├── interceptors/
+   101→│   ├── pipes/
+   102→│   └── utils/
+   103→└── infrastructure/                    # Technical infrastructure
+   104→    ├── database/
+   105→    ├── redis/
+   106→    ├── queue/
+   107→    ├── storage/
+   108→    └── search/
+   109→```
+   110→
+   111→### 2.2 Domain Modules
+   112→
+   113→Each domain module follows the hexagonal architecture pattern defined in §10.4.2: controllers define the HTTP API boundary, services encapsulate business logic, and repositories (TypeORM custom repositories) handle data access. Modules expose only their public service interface; internal implementations are private.
+   114→
+   115→#### auth
+   116→
+   117→| Aspect | Detail |
+   118→|--------|--------|
+   119→| **Responsibility** | User authentication, token management, invitation workflow, 2FA, impersonation |
+   120→| **DB Tables** | `users`, `refresh_tokens`, `user_invitations` |
+   121→| **Public API** | `AuthService` — login, register (via invitation), refreshToken, logout, verify2FA, impersonate |
+   122→| **Depends On** | `UsersModule` (user lookup), `AuditModule` (auth event logging), `RedisModule` (session tracking, lockout counter) |
+   123→| **Emits Events** | `UserLoggedInEvent`, `UserRegisteredEvent`, `UserInvitedEvent`, `UserImpersonationEvent` |
+   124→| **Controllers** | `AuthController` — `POST /v1/auth/login`, `POST /v1/auth/refresh`, `POST /v1/auth/logout`, `POST /v1/auth/2fa/verify` |
+   125→| **Key Design** | Dual-token JWT: RS256 access token (15min, in-memory) + HS256 refresh token (7day, HttpOnly cookie). Password hashing via Argon2id. Account lockout after 10 failed attempts within 1 hour. |
+   126→
+   127→#### users
+   128→
+   129→| Aspect | Detail |
+   130→|--------|--------|
+   131→| **Responsibility** | User CRUD, profile management, preference management, user search |
+   132→| **DB Tables** | `users`, `workspace_users`, `roles` |
+   133→| **Public API** | `UsersService` — findById, findByEmail, updateProfile, updatePreferences, searchUsers, addUserToWorkspace, removeUserFromWorkspace |
+   134→| **Depends On** | `OrganizationsModule` (org validation), `AuditModule` (mutation logging) |
+   135→| **Emits Events** | `UserCreatedEvent`, `UserUpdatedEvent`, `UserDeletedEvent`, `UserAddedToWorkspaceEvent` |
+   136→| **Controllers** | `UsersController` — `GET /v1/users/:id`, `PATCH /v1/users/:id`, `GET /v1/users`, `POST /v1/users/:id/workspace-memberships` |
+   137→| **Key Design** | Users are invited to organizations (no self-registration). Preferences (`preferred_language`, `preferred_theme`, `preferred_calendar`, `preferred_numerals`) are part of the user entity. |
+   138→
+   139→#### organizations
+   140→
+   141→| Aspect | Detail |
+   142→|--------|--------|
+   143→| **Responsibility** | Organization lifecycle, org-level settings, plan management |
+   144→| **DB Tables** | `organizations`, `subscriptions` |
+   145→| **Public API** | `OrganizationsService` — create, update, suspend, getById, list, checkQuota |
+   146→| **Depends On** | `BillingModule` (plan validation), `AuditModule` |
+   147→| **Emits Events** | `OrganizationCreatedEvent`, `OrganizationUpdatedEvent`, `OrganizationSuspendedEvent` |
+   148→| **Controllers** | `OrganizationsController` — `POST /v1/organizations`, `GET /v1/organizations/:id`, `PATCH /v1/organizations/:id` |
+   149→| **Key Design** | Enforces plan limits (`max_users`, `max_companies`, `token_budget_monthly`, `storage_limit_mb`) from the `plans` table's `limits` JSONB field. Cascade deletion to companies, brands, workspaces. |
+   150→
+   151→#### companies
+   152→
+   153→| Aspect | Detail |
+   154→|--------|--------|
+   155→| **Responsibility** | Company CRUD within organization scope |
+   156→| **DB Tables** | `companies` |
+   157→| **Public API** | `CompaniesService` — create, update, getById, listByOrganization |
+   158→| **Depends On** | `OrganizationsModule` (org validation, quota check), `AuditModule` |
+   159→| **Emits Events** | `CompanyCreatedEvent`, `CompanyUpdatedEvent`, `CompanyDeletedEvent` |
+   160→| **Controllers** | `CompaniesController` — `POST /v1/organizations/:orgId/companies`, `GET /v1/companies/:id` |
+   161→| **Key Design** | Companies are scoped to an organization. The `max_companies` limit on the parent organization is checked before creation. Soft delete via `deleted_at`. |
+   162→
+   163→#### brands
+   164→
+   165→| Aspect | Detail |
+   166→|--------|--------|
+   167→| **Responsibility** | Brand CRUD with visual identity (colors, fonts, CSS) |
+   168→| **DB Tables** | `brands` |
+   169→| **Public API** | `BrandsService` — create, update, getById, listByCompany |
+   170→| **Depends On** | `CompaniesModule` (company validation), `AuditModule` |
+   171→| **Emits Events** | `BrandCreatedEvent`, `BrandUpdatedEvent` |
+   172→| **Controllers** | `BrandsController` — `POST /v1/companies/:companyId/brands`, `GET /v1/brands/:id`, `PATCH /v1/brands/:id` |
+   173→| **Key Design** | Brands carry visual identity: `primary_color`, `secondary_color`, `accent_color`, `heading_font`, `body_font`, `custom_css`. CSS is sanitized (max 5KB, DOMPurify rules). |
+   174→
+   175→#### workspaces
+   176→
+   177→| Aspect | Detail |
+   178→|--------|--------|
+   179→| **Responsibility** | Workspace CRUD, workspace-level settings, model restrictions |
+   180→| **DB Tables** | `workspaces`, `workspace_users` |
+   181→| **Public API** | `WorkspacesService` — create, update, getById, listByBrand, addUser, removeUser, getMembers |
+   182→| **Depends On** | `BrandsModule` (brand validation), `UsersModule` (user validation), `AuditModule` |
+   183→| **Emits Events** | `WorkspaceCreatedEvent`, `WorkspaceUpdatedEvent`, `WorkspaceMemberAddedEvent` |
+   184→| **Controllers** | `WorkspacesController` — `POST /v1/brands/:brandId/workspaces`, `GET /v1/workspaces/:id`, `GET /v1/workspaces/:id/members` |
+   185→| **Key Design** | Workspaces own agents, knowledge bases, memory packs, and chat sessions. The `allowed_model_ids` UUID array restricts which AI models are available in this workspace. |
+   186→
+   187→#### agents
+   188→
+   189→| Aspect | Detail |
+   190→|--------|--------|
+   191→| **Responsibility** | Agent lifecycle (draft → active → deprecated), agent configuration, tool/knowledge/memory bindings |
+   192→| **DB Tables** | `agents`, `agent_tools`, `agent_knowledge`, `agent_memory`, `tools`, `tool_parameters` |
+   193→| **Public API** | `AgentsService` — create, update, deploy, deprecate, getById, listByWorkspace, bindTool, bindKnowledge, bindMemory, testAgent |
+   194→| **Depends On** | `WorkspacesModule` (workspace validation), `KnowledgeModule`, `MemoryModule`, `ToolEngine` |
+   195→| **Emits Events** | `AgentCreatedEvent`, `AgentDeployedEvent`, `AgentDeprecatedEvent` |
+   196→| **Controllers** | `AgentsController` — `POST /v1/workspaces/:wsId/agents`, `PATCH /v1/agents/:id`, `POST /v1/agents/:id/deploy`, `POST /v1/agents/:id/test` |
+   197→| **Key Design** | Agent types: chat, rag, tool_use, autonomous, workflow. Rate limits per user and per workspace. System prompt is configurable, not hardcoded. Temperature, top_p, penalties are per-agent settings. |
+   198→
+   199→#### chat
+   200→
+   201→| Aspect | Detail |
+   202→|--------|--------|
+   203→| **Responsibility** | Chat sessions, message handling, conversation branching, message history |
+   204→| **DB Tables** | `chat_sessions`, `chat_messages` |
+   205→| **Public API** | `ChatService` — createSession, sendMessage, getMessages, getBranch, createBranch, searchMessages, archiveSession |
+   206→| **Depends On** | `AgentsModule`, `LLMRouterEngine`, `ContextEngine`, `StreamingEngine`, `RAGEngine`, `MemoryEngine`, `ToolEngine`, `BillingModule` (usage tracking) |
+   207→| **Emits Events** | `ChatSessionCreatedEvent`, `MessageSentEvent`, `MessageReceivedEvent` |
+   208→| **Controllers** | `ChatController` — `POST /v1/workspaces/:wsId/chats`, `GET /v1/chats/:sessionId`, `POST /v1/chats/:sessionId/messages`, `GET /v1/chats/:sessionId/messages` |
+   209→| **Key Design** | Messages are immutable (BIGINT auto-increment PK for throughput). Branching uses `parent_message_id` + `branch_index`. Monthly partitioning. Token counts tracked per message and accumulated on the session. |
+   210→
+   211→#### knowledge
+   212→
+   213→| Aspect | Detail |
+   214→|--------|--------|
+   215→| **Responsibility** | Knowledge base CRUD, document upload, processing pipeline orchestration |
+   216→| **DB Tables** | `knowledge_bases`, `knowledge_documents`, `knowledge_chunks`, `knowledge_embeddings` |
+   217→| **Public API** | `KnowledgeService` — createKnowledgeBase, uploadDocument, deleteDocument, getProcessingStatus, search |
+   218→| **Depends On** | `WorkspacesModule`, `RAGEngine` (processing pipeline), `InfrastructureModule` (S3 storage), `QueueModule` (processing jobs) |
+   219→| **Emits Events** | `KnowledgeBaseCreatedEvent`, `DocumentUploadedEvent`, `DocumentProcessingCompleteEvent` |
+   220→| **Controllers** | `KnowledgeController` — `POST /v1/workspaces/:wsId/knowledge-bases`, `POST /v1/knowledge-bases/:kbId/documents`, `GET /v1/knowledge-bases/:kbId/status` |
+   221→| **Key Design** | Processing pipeline (upload → extract → chunk → embed → index) runs asynchronously via BullMQ. Status tracked per document. Deduplication via `content_hash`. Persian NLP optimization configurable per knowledge base. |
+   222→
+   223→#### memory
+   224→
+   225→| Aspect | Detail |
+   226→|--------|--------|
+   227→| **Responsibility** | Memory pack CRUD, version management, diff/rollback |
+   228→| **DB Tables** | `memory_packs`, `memory_pack_versions` |
+   229→| **Public API** | `MemoryService` — createPack, updatePack, getVersions, rollbackToVersion, getVersionDiff |
+   230→| **Depends On** | `WorkspacesModule`, `AuditModule` |
+   231→| **Emits Events** | `MemoryPackCreatedEvent`, `MemoryPackUpdatedEvent`, `MemoryPackVersionRolledBackEvent` |
+   232→| **Controllers** | `MemoryController` — `POST /v1/workspaces/:wsId/memory-packs`, `PATCH /v1/memory-packs/:id`, `GET /v1/memory-packs/:id/versions`, `POST /v1/memory-packs/:id/rollback/:version` |
+   233→| **Key Design** | Memory types: context, preference, knowledge, system. Version history with diff comparison. Memory packs are bound to agents via `agent_memory` junction table. |
+   234→
+   235→#### billing
+   236→
+   237→| Aspect | Detail |
+   238→|--------|--------|
+   239→| **Responsibility** | Subscription management, invoice generation, usage tracking, payment processing |
+   240→| **DB Tables** | `plans`, `subscriptions`, `invoices`, `invoice_line_items`, `transactions`, `usage_logs` |
+   241→| **Public API** | `BillingService` — createSubscription, changePlan, generateInvoice, recordUsage, getUsageSummary |
+   242→| **Depends On** | `OrganizationsModule`, `AuditModule` |
+   243→| **Emits Events** | `SubscriptionCreatedEvent`, `InvoiceGeneratedEvent`, `UsageQuotaWarningEvent`, `PaymentReceivedEvent` |
+   244→| **Controllers** | `BillingController` — `GET /v1/billing/usage`, `GET /v1/billing/invoices`, `GET /v1/billing/subscription` |
+   245→| **Key Design** | Plans defined with JSONB `limits` for flexible feature gating. Usage tracked per workspace, per model, per session. Automated invoice generation per billing cycle. Iranian payment gateway integration. |
+   246→
+   247→#### audit
+   248→
+   249→| Aspect | Detail |
+   250→|--------|--------|
+   251→| **Responsibility** | Audit log recording, querying, and retention management |
+   252→| **DB Tables** | `audit_logs`, `system_logs` |
+   253→| **Public API** | `AuditService` — log, queryLogs, querySystemLogs, purgeOldLogs |
+   254→| **Depends On** | None (leaf module — other modules depend on it) |
+   255→| **Emits Events** | None (audit is a sink, not a source) |
+   256→| **Controllers** | `AuditController` — `GET /v1/audit-logs`, `GET /v1/system-logs` |
+   257→| **Key Design** | Every mutation operation generates an audit log entry (actor, action, target, diff). BIGINT auto-increment PK. Monthly partitioning. Retention varies by plan (30/90/365 days). System logs partitioned daily, auto-dropped after 30 days. |
+   258→
+   259→### 2.3 Engine Modules
+   260→
+   261→Engine modules provide AI/ML infrastructure consumed by domain modules. They do not own database tables (except for caching/state) and are designed to be stateless computational units.
+   262→
+   263→#### llm-router
+   264→
+   265→| Aspect | Detail |
+   266→|--------|--------|
+   267→| **Responsibility** | Route AI requests to the optimal provider/model, health monitoring, failover |
+   268→| **DB Tables** | `api_providers`, `models`, `model_routing_rules` (read) |
+   269→| **Public API** | `LLMRouterService` — route, getAvailableModels, getProviderHealth, updateHealthStatus |
+   270→| **Consumed By** | `ChatModule`, `RAGEngine` (for embedding models) |
+   271→| **Key Design** | 5-step routing pipeline. Circuit breakers per provider. Configurable retry with exponential backoff. Health tracking with Redis. |
+   272→
+   273→#### context-engine
+   274→
+   275→| Aspect | Detail |
+   276→|--------|--------|
+   277→| **Responsibility** | Token budget allocation, context window management, priority reduction |
+   278→| **Public API** | `ContextEngineService` — buildContext, allocateBudget, estimateTokens, truncateToFit |
+   279→| **Consumed By** | `ChatModule` |
+   280→| **Key Design** | Priority allocation: Knowledge (highest) → History → Memory → Tools (lowest). Sliding window with priority-based token reduction when context exceeds budget. |
+   281→
+   282→#### rag-engine
+   283→
+   284→| Aspect | Detail |
+   285→|--------|--------|
+   286→| **Responsibility** | Document processing pipeline, retrieval pipeline, Persian NLP |
+   287→| **DB Tables** | `knowledge_chunks`, `knowledge_embeddings` (read/write via TypeORM) |
+   288→| **Public API** | `RAGEngineService` — processDocument, retrieve, embed, hybridSearch |
+   289→| **Consumed By** | `ChatModule`, `KnowledgeModule` |
+   290→| **Sub-modules** | `chunking/` (fixed-size, semantic, paragraph, heading-based), `persian-nlp/` (normalizer, stemmer), `embedding/` (embedding generation) |
+   291→| **Key Design** | Hybrid search: pgvector HNSW cosine similarity + BM25 full-text. Persian-optimized chunking and normalization. Multiple embedding models supported. |
+   292→
+   293→#### memory-engine
+   294→
+   295→| Aspect | Detail |
+   296→|--------|--------|
+   297→| **Responsibility** | Memory pack resolution, hierarchical memory assembly, memory injection |
+   298→| **DB Tables** | `memory_packs`, `memory_pack_versions` (read via TypeORM) |
+   299→| **Public API** | `MemoryEngineService` — resolveMemoryPack, assembleHierarchicalMemory, injectMemory |
+   300→| **Consumed By** | `ChatModule`, `ContextEngine` |
+   301→| **Key Design** | Hierarchical resolution: Workspace → Brand → Company → Organization (accumulates upward). Memory type classification. Token-aware injection. |
+   302→
+   303→#### tool-engine
+   304→
+   305→| Aspect | Detail |
+   306→|--------|--------|
+   307→| **Responsibility** | Tool registry, tool execution, result formatting |
+   308→| **DB Tables** | `tools`, `tool_parameters` (read) |
+   309→| **Public API** | `ToolEngineService` — executeTool, getToolDefinition, formatToolResult |
+   310→| **Consumed By** | `ChatModule` |
+   311→| **Key Design** | Tools defined in the `tools` table with JSON Schema `input_schema`. Execution sandboxed with timeout. Results formatted for AI consumption. |
+   312→
+   313→#### streaming-engine
+   314→
+   315→| Aspect | Detail |
+   316→|--------|--------|
+   317→| **Responsibility** | SSE connection management, event emission, backpressure handling |
+   318→| **Public API** | `StreamingEngineService` — createStream, emit, close, isConnected, getActiveConnections |
+   319→| **Consumed By** | `ChatModule`, `KnowledgeModule` (upload progress) |
+   320→| **Key Design** | 8 event types. Connection tracking via Redis. Heartbeat keep-alive. Graceful disconnection handling. |
+   321→
+   322→### 2.4 Module Dependency Graph
+   323→
+   324→```
+   325→                    ┌──────────┐
+   326→                    │  audit   │  (leaf — no outgoing dependencies)
+   327→                    └──────────┘
+   328→                         ↑
+   329→┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+   330→│  users   │──→│   auth   │   │ billing  │   │ knowledge│   │  memory  │
+   331→└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
+   332→      ↑                             ↑              ↑                ↑
+   333→┌──────────┐   ┌──────────┐   ┌──────────┐                          │
+   334→│  orgs    │──→│companies │──→│  brands  │──────────→ workspaces ←───┘
+   335→└──────────┘   └──────────┘   └──────────┘             │
+   336→                                                      │
+   337→                                              ┌───────┴───────┐
+   338→                                              │    agents     │
+   339→                                              └───────┬───────┘
+   340→                                                      │
+   341→                                              ┌───────┴───────┐
+   342→                                              │     chat      │
+   343→                                              └───┬───┬───┬───┘
+   344→                                                  │   │   │
+   345→                                ┌─────────────────┘   │   └──────────┐
+   346→                                │                     │              │
+   347→                         ┌──────┴──────┐        ┌────┴────┐   ┌─────┴─────┐
+   348→                         │ llm-router  │        │context  │   │streaming  │
+   349→                         └──────┬──────┘        │ engine  │   │  engine   │
+   350→                                │               └────┬────┘   └───────────┘
+   351→                         ┌──────┴──────┐             │
+   352→                         │  rag-engine │←────────────┘
+   353→                         └──────┬──────┘
+   354→                                │
+   355→                         ┌──────┴──────┐
+   356→                         │tool-engine  │
+   357→                         └─────────────┘
+   358→                         ┌─────────────┐
+   359→                         │memory-engine│
+   360→                         └─────────────┘
+   361→```
+   362→
+   363→---
+   364→
+   365→## 3. Domain Event System
+   366→
+   367→### 3.1 Architecture
+   368→
+   369→The domain event system is the backbone of inter-module communication in HotHoosh. Per Engineering Rules §10.4.2, modules never import each other's services directly for cross-domain operations. Instead, when a domain operation produces side effects that concern other modules, it emits a domain event. Interested modules register handlers that react to these events asynchronously.
+   370→
+   371→The event system is implemented as an **in-memory event bus** (`DomainEventBus`) backed by Redis for reliability. Events are published synchronously within the current transaction scope but dispatched to handlers asynchronously after the transaction commits (to avoid handlers operating on uncommitted data). A **transactional outbox** pattern ensures no events are lost if the application crashes between transaction commit and handler dispatch.
+   372→
+   373→### 3.2 Event Bus Implementation
+   374→
+   375→```typescript
+   376→// Simplified interface — actual implementation uses NestJS CQRS EventBus
+   377→interface DomainEventBus {
+   378→  publish(event: DomainEvent): Promise<void>;
+   379→  subscribe(eventType: string, handler: EventHandler): void;
+   380→  unsubscribe(eventType: string, handler: EventHandler): void;
+   381→}
+   382→
+   383→interface DomainEvent {
+   384→  readonly eventId: string;       // UUID v7
+   385→  readonly eventType: string;      // Discriminator for the event type
+   386→  readonly timestamp: Date;       // Event creation time
+   387→  readonly actorId: string;       // User who triggered the event
+   388→  readonly payload: unknown;      // Event-specific data
+   389→  readonly correlationId: string; // Request correlation ID
+   390→}
+   391→```
+   392→
+   393→### 3.3 Event Types
+   394→
+   395→Events are organized by the domain module that emits them. Each event class extends a `DomainEvent` base class with a typed payload.
+   396→
+   397→| Module | Event | Payload | Consumed By |
+   398→|--------|-------|---------|-------------|
+   399→| **auth** | `UserLoggedInEvent` | `{ userId, ipAddress, userAgent }` | audit |
+   400→| **auth** | `UserRegisteredEvent` | `{ userId, invitationId, organizationId }` | audit, billing |
+   401→| **auth** | `UserInvitedEvent` | `{ invitationId, email, organizationId, roleId }` | audit |
+   402→| **auth** | `UserImpersonationEvent` | `{ adminId, targetUserId, sessionId }` | audit |
+   403→| **users** | `UserUpdatedEvent` | `{ userId, changes }` | audit |
+   404→| **users** | `UserDeletedEvent` | `{ userId }` | audit, billing |
+   405→| **users** | `UserAddedToWorkspaceEvent` | `{ userId, workspaceId, roleId }` | audit |
+   406→| **organizations** | `OrganizationCreatedEvent` | `{ organizationId, planId }` | audit, billing |
+   407→| **organizations** | `OrganizationSuspendedEvent` | `{ organizationId, reason }` | audit |
+   408→| **companies** | `CompanyCreatedEvent` | `{ companyId, organizationId }` | audit |
+   409→| **brands** | `BrandCreatedEvent` | `{ brandId, companyId }` | audit |
+   410→| **workspaces** | `WorkspaceCreatedEvent` | `{ workspaceId, brandId }` | audit |
+   411→| **workspaces** | `WorkspaceMemberAddedEvent` | `{ workspaceId, userId, roleId }` | audit |
+   412→| **agents** | `AgentCreatedEvent` | `{ agentId, workspaceId }` | audit |
+   413→| **agents** | `AgentDeployedEvent` | `{ agentId, previousStatus }` | audit |
+   414→| **chat** | `ChatSessionCreatedEvent` | `{ sessionId, workspaceId, agentId }` | audit |
+   415→| **chat** | `MessageSentEvent` | `{ sessionId, messageId, role, tokenCount }` | billing (usage tracking) |
+   416→| **chat** | `MessageReceivedEvent` | `{ sessionId, messageId, modelId, inputTokens, outputTokens, latencyMs }` | billing (usage logs) |
+   417→| **knowledge** | `KnowledgeBaseCreatedEvent` | `{ kbId, workspaceId }` | audit |
+   418→| **knowledge** | `DocumentUploadedEvent` | `{ documentId, kbId, fileName }` | queue (trigger processing) |
+   419→| **knowledge** | `DocumentProcessingCompleteEvent` | `{ documentId, kbId, chunkCount, status }` | audit |
+   420→| **memory** | `MemoryPackCreatedEvent` | `{ packId, workspaceId }` | audit |
+   421→| **memory** | `MemoryPackUpdatedEvent` | `{ packId, previousVersion, newVersion }` | audit |
+   422→| **billing** | `SubscriptionCreatedEvent` | `{ organizationId, planId }` | audit |
+   423→| **billing** | `InvoiceGeneratedEvent` | `{ invoiceId, organizationId, amount }` | audit |
+   424→| **billing** | `UsageQuotaWarningEvent` | `{ organizationId, workspaceId, metric, percentage }` | notifications |
+   425→| **billing** | `PaymentReceivedEvent` | `{ transactionId, invoiceId, amount }` | audit |
+   426→
+   427→### 3.4 Handler Registration
+   428→
+   429→Event handlers are registered within each consuming module's `onModuleInit` lifecycle hook. Handlers are always asynchronous and must be idempotent (an event may be retried on failure).
+   430→
+   431→```typescript
+   432→// Example: BillingModule subscribes to message events for usage tracking
+   433→@Module({
+   434→  imports: [CqrsModule],
+   435→  // ...
+   436→})
+   437→export class BillingModule implements OnModuleInit {
+   438→  constructor(private readonly eventBus: DomainEventBus) {}
+   439→
+   440→  onModuleInit(): void {
+   441→    this.eventBus.subscribe('MessageSentEvent', this.handleMessageSent.bind(this));
+   442→    this.eventBus.subscribe('MessageReceivedEvent', this.handleMessageReceived.bind(this));
+   443→  }
+   444→
+   445→  private async handleMessageSent(event: MessageSentEvent): Promise<void> {
+   446→    // Record usage...
+   447→  }
+   448→}
+   449→```
+   450→
+   451→### 3.5 Transactional Outbox Pattern
+   452→
+   453→To guarantee that every domain state change is accompanied by its corresponding event (no lost events), HotHoosh uses the **transactional outbox** pattern:
+   454→
+   455→1. When a service method performs a write operation (e.g., `UsersService.createUser`), it opens a database transaction.
+   456→2. Within the same transaction, it writes the domain state change AND inserts an outbox record into an `outbox_events` table.
+   457→3. The transaction commits atomically — both the state change and the event record are persisted together.
+   458→4. A background worker (BullMQ processor) polls the `outbox_events` table for unprocessed events, dispatches them to the event bus, and marks them as processed.
+   459→5. If the application crashes between steps 4 and 5, the outbox records remain unprocessed and are picked up on restart.
+   460→
+   461→The `outbox_events` table uses BIGINT auto-increment for throughput, with columns for `event_type`, `payload` (JSONB), `created_at`, `processed_at`, and `correlation_id`.
+   462→
+   463→---
+   464→
+   465→## 4. Authentication Flow
+   466→
+   467→### 4.1 Overview
+   468→
+   469→HotHoosh uses a **dual-token JWT** authentication system as specified in PRD FR-AUTH-002 and Engineering Rules §10.6.1. Access tokens use RS256 asymmetric signing for short-lived authentication (15 minutes, stored in memory only). Refresh tokens use HS256 symmetric signing for longer-lived session persistence (7 days, stored in HttpOnly cookies). This separation ensures that access tokens can be validated without database lookups (RS256 public key), while refresh tokens require server-side validation (HS256 shared secret + database lookup for revocation).
+   470→
+   471→### 4.2 Registration Flow
+   472→
+   473→Users cannot self-register. Registration is invitation-only (PRD FR-AUTH-001). The flow is:
+   474→
+   475→1. **Invitation Creation**: An organization admin sends an invitation via `POST /v1/organizations/:orgId/invitations`. The `user_invitations` table records the target email, role, and optional company/brand/workspace scope. A SHA-256 hashed invitation token is stored. An email is dispatched with a secure link containing the raw token.
+   476→
+   477→2. **Invitation Acceptance**: The invitee clicks the link, which navigates to the registration page with the token. They provide display name, password (validated against policy: min 8 chars, uppercase, lowercase, number, special character), and phone number (optional).
+   478→
+   479→3. **Registration**: `POST /v1/auth/register` accepts the invitation token, user data. The service:
+   480→   - Validates the token against `user_invitations.token_hash` and checks `status = pending` and `expires_at > NOW()`.
+   481→   - Hashes the password with Argon2id (OWASP parameters: memory=64MB, time=3, parallelism=4).
+   482→   - Creates the `users` record with `status = active`, `email_verified_at = NOW()`.
+   483→   - Creates a `workspace_users` record if the invitation targets a specific workspace.
+   484→   - Marks the invitation as `status = accepted`, `accepted_at = NOW()`.
+   485→   - Emits `UserRegisteredEvent`.
+   486→
+   487→4. **Auto-Login**: After registration, the system automatically triggers the login flow (step 4.3) to issue tokens without requiring the user to separately authenticate.
+   488→
+   489→### 4.3 Login Flow
+   490→
+   491→```
+   492→Client                      Server                         Database
+   493→  │                           │                               │
+   494→  │  POST /v1/auth/login      │                               │
+   495→  │  { email, password }     │                               │
+   496→  │──────────────────────────>│                               │
+   497→  │                           │  Find user by email           │
+   498→  │                           │──────────────────────────────>│
+   499→  │                           │  <── user record ─────────────│
+   500→  │                           │                               │
+
+[showing lines 1-500 of 2008; use offset=501 with limit to continue reading]
