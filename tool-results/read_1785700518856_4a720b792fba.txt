@@ -1,0 +1,502 @@
+     1→     1→     1→# Database Design
+     2→     2→     2→
+     3→     3→     3→## HotHoosh — Complete Schema Specification
+     4→     4→     4→
+     5→     5→     5→---
+     6→     6→     6→
+     7→     7→     7→## 1. Database Engine
+     8→     8→     8→
+     9→     9→     9→**PostgreSQL 16+** with the following extensions:
+    10→    10→    10→
+    11→    11→    11→| Extension | Version | Purpose |
+    12→    12→    12→|-----------|---------|--------|
+    13→    13→    13→| `uuid-ossp` | 1.1 | UUID v7 generation (via custom function) |
+    14→    14→    14→| `vector` (pgvector) | 0.7+ | Vector embeddings storage and HNSW indexing |
+    15→    15→    15→| `pg_trgm` | 1.6 | Trigram similarity for fuzzy text search |
+    16→    16→    16→| `btree_gin` | 1.3 | GIN indexes on JSONB columns |
+    17→    17→    17→
+    18→    18→    18→### 1.1 UUID v7 Strategy
+    19→    19→    19→
+    20→    20→    20→HotHoosh uses **UUID v7** (time-sortable) as the default primary key for all entities. UUID v7 combines a Unix timestamp (millisecond precision) with random bytes, producing IDs that are:
+    21→    21→    21→
+    22→    22→    22→- **Globally unique** (no coordination needed)
+    23→    23→    23→- **Time-sortable** (recent entities have higher IDs, benefiting B-tree indexes)
+    24→    24→    24→- **K-sortable** within the same millisecond
+    25→    25→    25→
+    26→    26→    26→For **high-throughput append-only tables** (audit_logs, usage_logs, chat_messages, system_logs), **BIGINT** auto-increment is used instead to avoid UUID storage overhead and maintain maximum insert throughput.
+    27→    27→    27→
+    28→    28→    28→### 1.2 Migration Strategy
+    29→    29→    29→
+    30→    30→    30→Migrations are managed via a dedicated migration tool integrated with NestJS. Each migration file is timestamped and contains `UP` and `DOWN` functions. Migrations are:
+    31→    31→    31→
+    32→    32→    32→- **Sequential**: Each migration builds on the previous one.
+    33→    33→    33→- **Irreversible by default**: `DOWN` functions must be explicitly written for rollback support.
+    34→    34→    34→- **Tested**: Every migration is tested against a copy of production data before deployment.
+    35→    35→    35→- **Reviewed**: Schema changes require PR review with at least 2 approvals.
+    36→    36→    36→
+    37→    37→    37→---
+    38→    38→    38→
+    39→    39→    39→## 2. Schema Overview
+    40→    40→    40→
+    41→    41→    41→The HotHoosh data model is organized into the following domains:
+    42→    42→    42→
+    43→    43→    43→```
+    44→    44→    44→┌─────────────────────────────────────────────────────────┐
+    45→    45→    45→│                    TENANT HIERARCHY                      │
+    46→    46→    46→│  organizations → companies → brands → workspaces       │
+    47→    47→    47→│       ↓            ↓          ↓          ↓              │
+    48→    48→    48→│  org_settings  company_settings  brand_settings  workspace_settings │
+    49→    49→    49→└─────────────────────────────────────────────────────────┘
+    50→    50→    50→
+    51→    51→    51→┌─────────────────────────────────────────────────────────┐
+    52→    52→    52→│                      IDENTITY                             │
+    53→    53→    53→│  users → user_roles → roles → permissions                │
+    54→    54→    54→│  workspace_users (junction: users × workspaces)          │
+    55→    55→    55→│  refresh_tokens                                           │
+    56→    56→    56→│  user_invitations                                         │
+    57→    57→    57→└─────────────────────────────────────────────────────────┘
+    58→    58→    58→
+    59→    59→    59→┌─────────────────────────────────────────────────────────┐
+    60→    60→    60→│                        AI                                 │
+    61→    61→    61→│  api_providers → models → model_routing_rules            │
+    62→    62→    62→│  agents → agent_tools → agent_knowledge → agent_memory   │
+    63→    63→    63→│  tools → tool_parameters                                  │
+    64→    64→    64→└─────────────────────────────────────────────────────────┘
+    65→    65→    65→
+    66→    66→    66→┌─────────────────────────────────────────────────────────┐
+    67→    67→    67→│                     CONVERSATION                          │
+    68→    68→    68→│  chat_sessions → chat_messages (immutable)               │
+    69→    69→    69→│  chat_branches                                            │
+    70→    70→    70→└─────────────────────────────────────────────────────────┘
+    71→    71→    71→
+    72→    72→    72→┌─────────────────────────────────────────────────────────┐
+    73→    73→    73→│                     KNOWLEDGE                             │
+    74→    74→    74→│  knowledge_bases → knowledge_documents → knowledge_chunks│
+    75→    75→    75→│  knowledge_embeddings (vector)                            │
+    76→    76→    76→└─────────────────────────────────────────────────────────┘
+    77→    77→    77→
+    78→    78→    78→┌─────────────────────────────────────────────────────────┐
+    79→    79→    79→│                      MEMORY                               │
+    80→    80→    80→│  memory_packs → memory_pack_versions                     │
+    81→    81→    81→│  memory_pack_bindings (agents × memory_packs)            │
+    82→    82→    82→└─────────────────────────────────────────────────────────┘
+    83→    83→    83→
+    84→    84→    84→┌─────────────────────────────────────────────────────────┐
+    85→    85→    85→│                    OPERATIONS                             │
+    86→    86→    86→│  audit_logs (BIGINT PK)                                  │
+    87→    87→    87→│  usage_logs (BIGINT PK, partitioned)                     │
+    88→    88→    88→│  system_logs (BIGINT PK)                                  │
+    89→    89→    89→│  background_jobs (BullMQ)                                 │
+    90→    90→    90→│  invoices → invoice_line_items → transactions            │
+    91→    91→    91→│  plans → subscriptions                                    │
+    92→    92→    92→│  settings (key-value)                                     │
+    93→    93→    93→│  webhooks                                                 │
+    94→    94→    94→│  email_templates                                          │
+    95→    95→    95→│  notifications                                           │
+    96→    96→    96→└─────────────────────────────────────────────────────────┘
+    97→    97→    97→```
+    98→    98→    98→
+    99→    99→    99→---
+   100→   100→   100→
+   101→   101→   101→## 3. Tenant Hierarchy
+   102→   102→   102→
+   103→   103→   103→### 3.1 organizations
+   104→   104→   104→
+   105→   105→   105→| Column | Type | Constraints | Description |
+   106→   106→   106→|--------|------|-------------|-------------|
+   107→   107→   107→| id | UUID | PK, DEFAULT uuid_generate_v7() | Organization identifier |
+   108→   108→   108→| name | VARCHAR(100) | NOT NULL, CHECK(length > 2) | Organization display name (Persian) |
+   109→   109→   109→| slug | VARCHAR(50) | NOT NULL, UNIQUE, CHECK(slug ~ '^[a-z0-9-]+$') | URL-safe identifier |
+   110→   110→   110→| logo_url | VARCHAR(500) | NULL | S3 URL for organization logo |
+   111→   111→   111→| description | TEXT | NULL | Organization description |
+   112→   112→   112→| owner_id | UUID | NOT NULL, FK(users.id) | Organization owner |
+   113→   113→   113→| plan_id | UUID | NOT NULL, FK(plans.id) | Current subscription plan |
+   114→   114→   114→| status | VARCHAR(20) | NOT NULL, DEFAULT 'active', CHECK(status IN ('active','inactive','suspended')) | Organization status |
+   115→   115→   115→| max_companies | INTEGER | NOT NULL, DEFAULT 5 | Plan-defined limit |
+   116→   116→   116→| max_users | INTEGER | NOT NULL, DEFAULT 50 | Plan-defined limit |
+   117→   117→   117→| token_budget_monthly | BIGINT | NOT NULL, DEFAULT 5000000 | Monthly token budget (5M default) |
+   118→   118→   118→| storage_limit_mb | BIGINT | NOT NULL, DEFAULT 51200 | Storage limit in MB (50GB default) |
+   119→   119→   119→| settings | JSONB | NOT NULL, DEFAULT '{}' | Organization-level settings (JSON) |
+   120→   120→   120→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   121→   121→   121→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   122→   122→   122→| deleted_at | TIMESTAMPTZ | NULL | Soft delete timestamp |
+   123→   123→   123→
+   124→   124→   124→**Indexes:**
+   125→   125→   125→- `uniq_orgs_slug` UNIQUE (slug) WHERE deleted_at IS NULL
+   126→   126→   126→- `idx_orgs_owner_id` B-tree (owner_id)
+   127→   127→   127→- `idx_orgs_plan_id` B-tree (plan_id)
+   128→   128→   128→- `idx_orgs_status` B-tree (status) WHERE deleted_at IS NULL
+   129→   129→   129→- `idx_orgs_created_at` B-tree (created_at DESC)
+   130→   130→   130→
+   131→   131→   131→**RLS Policy:**
+   132→   132→   132→- Super admins: full access
+   133→   133→   133→- Org admins: access to own org + no access to others
+   134→   134→   134→- Others: no direct access (access via company/brand/workspace membership)
+   135→   135→   135→
+   136→   136→   136→---
+   137→   137→   137→
+   138→   138→   138→### 3.2 companies
+   139→   139→   139→
+   140→   140→   140→| Column | Type | Constraints | Description |
+   141→   141→   141→|--------|------|-------------|-------------|
+   142→   142→   142→| id | UUID | PK, DEFAULT uuid_generate_v7() | Company identifier |
+   143→   143→   143→| organization_id | UUID | NOT NULL, FK(organizations.id, ON DELETE CASCADE) | Parent organization |
+   144→   144→   144→| name | VARCHAR(100) | NOT NULL | Company display name |
+   145→   145→   145→| slug | VARCHAR(50) | NOT NULL, CHECK(slug ~ '^[a-z0-9-]+$') | URL-safe identifier |
+   146→   146→   146→| logo_url | VARCHAR(500) | NULL | S3 URL for company logo |
+   147→   147→   147→| description | TEXT | NULL | Company description |
+   148→   148→   148→| owner_id | UUID | NOT NULL, FK(users.id) | Company owner |
+   149→   149→   149→| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | active, inactive, suspended |
+   150→   150→   150→| settings | JSONB | NOT NULL, DEFAULT '{}' | Company-level settings |
+   151→   151→   151→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   152→   152→   152→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   153→   153→   153→| deleted_at | TIMESTAMPTZ | NULL | Soft delete |
+   154→   154→   154→
+   155→   155→   155→**Indexes:**
+   156→   156→   156→- `uniq_companies_org_slug` UNIQUE (organization_id, slug) WHERE deleted_at IS NULL
+   157→   157→   157→- `idx_companies_organization_id` B-tree (organization_id)
+   158→   158→   158→- `idx_companies_owner_id` B-tree (owner_id)
+   159→   159→   159→- `idx_companies_status` B-tree (status)
+   160→   160→   160→
+   161→   161→   161→**RLS Policy:** Accessible by users with roles in the parent organization or the company itself.
+   162→   162→   162→
+   163→   163→   163→---
+   164→   164→   164→
+   165→   165→   165→### 3.3 brands
+   166→   166→   166→
+   167→   167→   167→| Column | Type | Constraints | Description |
+   168→   168→   168→|--------|------|-------------|-------------|
+   169→   169→   169→| id | UUID | PK, DEFAULT uuid_generate_v7() | Brand identifier |
+   170→   170→   170→| company_id | UUID | NOT NULL, FK(companies.id, ON DELETE CASCADE) | Parent company |
+   171→   171→   171→| name | VARCHAR(100) | NOT NULL | Brand display name |
+   172→   172→   172→| slug | VARCHAR(50) | NOT NULL, CHECK(slug ~ '^[a-z0-9-]+$') | URL-safe identifier |
+   173→   173→   173→| logo_url | VARCHAR(500) | NULL | Brand logo |
+   174→   174→   174→| favicon_url | VARCHAR(500) | NULL | Brand favicon |
+   175→   175→   175→| description | TEXT | NULL | Brand description |
+   176→   176→   176→| owner_id | UUID | NOT NULL, FK(users.id) | Brand owner |
+   177→   177→   177→| primary_color | VARCHAR(7) | NOT NULL, DEFAULT '#6366F1' | Brand primary color (hex) |
+   178→   178→   178→| secondary_color | VARCHAR(7) | NULL | Brand secondary color (hex) |
+   179→   179→   179→| accent_color | VARCHAR(7) | NULL | Brand accent color (hex) |
+   180→   180→   180→| heading_font | VARCHAR(100) | NOT NULL, DEFAULT 'Vazirmatn' | Heading font family |
+   181→   181→   181→| body_font | VARCHAR(100) | NOT NULL, DEFAULT 'Vazirmatn' | Body font family |
+   182→   182→   182→| custom_css | TEXT | NULL | Custom CSS injection (sanitized, max 5KB) |
+   183→   183→   183→| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | active, inactive, suspended |
+   184→   184→   184→| settings | JSONB | NOT NULL, DEFAULT '{}' | Brand-level settings |
+   185→   185→   185→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   186→   186→   186→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   187→   187→   187→| deleted_at | TIMESTAMPTZ | NULL | Soft delete |
+   188→   188→   188→
+   189→   189→   189→**Indexes:**
+   190→   190→   190→- `uniq_brands_company_slug` UNIQUE (company_id, slug) WHERE deleted_at IS NULL
+   191→   191→   191→- `idx_brands_company_id` B-tree (company_id)
+   192→   192→   192→- `idx_brands_owner_id` B-tree (owner_id)
+   193→   193→   193→
+   194→   194→   194→---
+   195→   195→   195→
+   196→   196→   196→### 3.4 workspaces
+   197→   197→   197→
+   198→   198→   198→| Column | Type | Constraints | Description |
+   199→   199→   199→|--------|------|-------------|-------------|
+   200→   200→   200→| id | UUID | PK, DEFAULT uuid_generate_v7() | Workspace identifier |
+   201→   201→   201→| brand_id | UUID | NOT NULL, FK(brands.id, ON DELETE CASCADE) | Parent brand |
+   202→   202→   202→| name | VARCHAR(100) | NOT NULL | Workspace display name |
+   203→   203→   203→| slug | VARCHAR(50) | NOT NULL, CHECK(slug ~ '^[a-z0-9-]+$') | URL-safe identifier |
+   204→   204→   204→| description | TEXT | NULL | Workspace description |
+   205→   205→   205→| owner_id | UUID | NOT NULL, FK(users.id) | Workspace owner |
+   206→   206→   206→| max_agents | INTEGER | NOT NULL, DEFAULT 10 | Max agents allowed |
+   207→   207→   207→| max_knowledge_bases | INTEGER | NOT NULL, DEFAULT 5 | Max knowledge bases |
+   208→   208→   208→| max_memory_packs | INTEGER | NOT NULL, DEFAULT 10 | Max memory packs |
+   209→   209→   209→| token_budget_monthly | BIGINT | NOT NULL, DEFAULT 1000000 | Monthly token budget (1M default) |
+   210→   210→   210→| allowed_model_ids | UUID[] | NULL | Restrict to specific models (NULL = all) |
+   211→   211→   211→| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | active, inactive, suspended |
+   212→   212→   212→| settings | JSONB | NOT NULL, DEFAULT '{}' | Workspace-level settings |
+   213→   213→   213→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   214→   214→   214→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   215→   215→   215→| deleted_at | TIMESTAMPTZ | NULL | Soft delete |
+   216→   216→   216→
+   217→   217→   217→**Indexes:**
+   218→   218→   218→- `uniq_workspaces_brand_slug` UNIQUE (brand_id, slug) WHERE deleted_at IS NULL
+   219→   219→   219→- `idx_workspaces_brand_id` B-tree (brand_id)
+   220→   220→   220→- `idx_workspaces_owner_id` B-tree (owner_id)
+   221→   221→   221→
+   222→   222→   222→---
+   223→   223→   223→
+   224→   224→   224→## 4. Identity
+   225→   225→   225→
+   226→   226→   226→### 4.1 users
+   227→   227→   227→
+   228→   228→   228→| Column | Type | Constraints | Description |
+   229→   229→   229→|--------|------|-------------|-------------|
+   230→   230→   230→| id | UUID | PK, DEFAULT uuid_generate_v7() | User identifier (branded: UserId) |
+   231→   231→   231→| email | VARCHAR(255) | NOT NULL, UNIQUE | Email address |
+   232→   232→   232→| email_verified_at | TIMESTAMPTZ | NULL | Email verification timestamp |
+   233→   233→   233→| phone_number | VARCHAR(20) | NULL, UNIQUE | Iranian mobile (09xxxxxxxxx) |
+   234→   234→   234→| phone_verified_at | TIMESTAMPTZ | NULL | Phone verification timestamp |
+   235→   235→   235→| display_name | VARCHAR(100) | NOT NULL | Display name (Persian) |
+   236→   236→   236→| password_hash | VARCHAR(255) | NOT NULL | Argon2id hash |
+   237→   237→   237→| avatar_url | VARCHAR(500) | NULL | S3 URL for user avatar |
+   238→   238→   238→| preferred_language | VARCHAR(5) | NOT NULL, DEFAULT 'fa' | 'fa' or 'en' |
+   239→   239→   239→| preferred_theme | VARCHAR(10) | NOT NULL, DEFAULT 'system' | 'dark', 'light', 'system' |
+   240→   240→   240→| preferred_calendar | VARCHAR(10) | NOT NULL, DEFAULT 'jalali' | 'jalali' or 'gregorian' |
+   241→   241→   241→| preferred_numerals | VARCHAR(10) | NOT NULL, DEFAULT 'persian' | 'persian' or 'western' |
+   242→   242→   242→| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | active, inactive, suspended, pending |
+   243→   243→   243→| last_login_at | TIMESTAMPTZ | NULL | Last successful login |
+   244→   244→   244→| last_login_ip | INET | NULL | IP of last login |
+   245→   245→   245→| last_login_user_agent | TEXT | NULL | User agent of last login |
+   246→   246→   246→| totp_secret | VARCHAR(255) | NULL | TOTP secret (encrypted) |
+   247→   247→   247→| totp_enabled | BOOLEAN | NOT NULL, DEFAULT FALSE | 2FA enabled |
+   248→   248→   248→| failed_login_attempts | INTEGER | NOT NULL, DEFAULT 0 | Failed login counter |
+   249→   249→   249→| locked_until | TIMESTAMPTZ | NULL | Account lockout expiry |
+   250→   250→   250→| settings | JSONB | NOT NULL, DEFAULT '{}' | User preferences (JSON) |
+   251→   251→   251→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   252→   252→   252→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   253→   253→   253→| deleted_at | TIMESTAMPTZ | NULL | Soft delete |
+   254→   254→   254→
+   255→   255→   255→**Indexes:**
+   256→   256→   256→- `uniq_users_email` UNIQUE (email) WHERE deleted_at IS NULL
+   257→   257→   257→- `uniq_users_phone` UNIQUE (phone_number) WHERE phone_number IS NOT NULL AND deleted_at IS NULL
+   258→   258→   258→- `idx_users_display_name` B-tree (display_name) — for admin search
+   259→   259→   259→- `idx_users_status` B-tree (status)
+   260→   260→   260→- `idx_users_created_at` B-tree (created_at DESC)
+   261→   261→   261→- `idx_users_settings` GIN (settings) — for querying user preferences
+   262→   262→   262→
+   263→   263→   263→---
+   264→   264→   264→
+   265→   265→   265→### 4.2 roles
+   266→   266→   266→
+   267→   267→   267→| Column | Type | Constraints | Description |
+   268→   268→   268→|--------|------|-------------|-------------|
+   269→   269→   269→| id | UUID | PK, DEFAULT uuid_generate_v7() | Role identifier |
+   270→   270→   270→| name | VARCHAR(50) | NOT NULL | Role name (e.g., 'super_admin', 'org_admin') |
+   271→   271→   271→| display_name | VARCHAR(100) | NOT NULL | Display name (Persian) |
+   272→   272→   272→| description | TEXT | NULL | Role description |
+   273→   273→   273→| level | VARCHAR(20) | NOT NULL | org, company, brand, workspace, system |
+   274→   274→   274→| parent_role_id | UUID | NULL, FK(roles.id) | Parent role for inheritance |
+   275→   275→   275→| is_system | BOOLEAN | NOT NULL, DEFAULT FALSE | System roles cannot be deleted |
+   276→   276→   276→| organization_id | UUID | NULL, FK(organizations.id) | NULL for system roles, set for custom roles |
+   277→   277→   277→| permissions | JSONB | NOT NULL, DEFAULT '[]' | Array of permission strings |
+   278→   278→   278→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   279→   279→   279→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   280→   280→   280→
+   281→   281→   281→**Indexes:**
+   282→   282→   282→- `uniq_roles_name_level_org` UNIQUE (name, level, organization_id) WHERE organization_id IS NOT NULL
+   283→   283→   283→- `uniq_roles_name_system` UNIQUE (name) WHERE is_system = TRUE AND organization_id IS NULL
+   284→   284→   284→- `idx_roles_parent_role_id` B-tree (parent_role_id)
+   285→   285→   285→- `idx_roles_level` B-tree (level)
+   286→   286→   286→
+   287→   287→   287→---
+   288→   288→   288→
+   289→   289→   289→### 4.3 workspace_users
+   290→   290→   290→
+   291→   291→   291→Junction table: users × workspaces with role assignment.
+   292→   292→   292→
+   293→   293→   293→| Column | Type | Constraints | Description |
+   294→   294→   294→|--------|------|-------------|-------------|
+   295→   295→   295→| id | UUID | PK, DEFAULT uuid_generate_v7() | Record identifier |
+   296→   296→   296→| workspace_id | UUID | NOT NULL, FK(workspaces.id, ON DELETE CASCADE) | Workspace |
+   297→   297→   297→| user_id | UUID | NOT NULL, FK(users.id, ON DELETE CASCADE) | User |
+   298→   298→   298→| role_id | UUID | NOT NULL, FK(roles.id) | Assigned role |
+   299→   299→   299→| joined_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Join timestamp |
+   300→   300→   300→| invited_by | UUID | NULL, FK(users.id) | Inviter user |
+   301→   301→   301→| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | active, suspended, removed |
+   302→   302→   302→
+   303→   303→   303→**Indexes:**
+   304→   304→   304→- `uniq_workspace_users` UNIQUE (workspace_id, user_id)
+   305→   305→   305→- `idx_workspace_users_user_id` B-tree (user_id)
+   306→   306→   306→- `idx_workspace_users_role_id` B-tree (role_id)
+   307→   307→   307→
+   308→   308→   308→**RLS Policy:** Users can only see their own workspace memberships. Org+ admins can see all memberships in their scope.
+   309→   309→   309→
+   310→   310→   310→---
+   311→   311→   311→
+   312→   312→   312→### 4.4 refresh_tokens
+   313→   313→   313→
+   314→   314→   314→| Column | Type | Constraints | Description |
+   315→   315→   315→|--------|------|-------------|-------------|
+   316→   316→   316→| id | UUID | PK, DEFAULT uuid_generate_v7() | Token identifier |
+   317→   317→   317→| user_id | UUID | NOT NULL, FK(users.id, ON DELETE CASCADE) | Token owner |
+   318→   318→   318→| token_hash | VARCHAR(255) | NOT NULL | SHA-256 hash of the refresh token |
+   319→   319→   319→| family_id | UUID | NOT NULL | Token family for rotation detection |
+   320→   320→   320→| device_fingerprint | VARCHAR(255) | NULL | Device/browser fingerprint |
+   321→   321→   321→| ip_address | INET | NULL | IP at token issuance |
+   322→   322→   322→| user_agent | TEXT | NULL | User agent at issuance |
+   323→   323→   323→| expires_at | TIMESTAMPTZ | NOT NULL | Expiry timestamp |
+   324→   324→   324→| revoked_at | TIMESTAMPTZ | NULL | Revocation timestamp |
+   325→   325→   325→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   326→   326→   326→
+   327→   327→   327→**Indexes:**
+   328→   328→   328→- `idx_refresh_tokens_user_id` B-tree (user_id)
+   329→   329→   329→- `idx_refresh_tokens_family_id` B-tree (family_id)
+   330→   330→   330→- `idx_refresh_tokens_token_hash` B-tree (token_hash)
+   331→   331→   331→- `idx_refresh_tokens_expires_at` B-tree (expires_at) WHERE revoked_at IS NULL
+   332→   332→   332→
+   333→   333→   333→**Cleanup Job:** Expired and revoked tokens are purged daily.
+   334→   334→   334→
+   335→   335→   335→---
+   336→   336→   336→
+   337→   337→   337→### 4.5 user_invitations
+   338→   338→   338→
+   339→   339→   339→| Column | Type | Constraints | Description |
+   340→   340→   340→|--------|------|-------------|-------------|
+   341→   341→   341→| id | UUID | PK, DEFAULT uuid_generate_v7() | Invitation identifier |
+   342→   342→   342→| organization_id | UUID | NOT NULL, FK(organizations.id) | Target organization |
+   343→   343→   343→| company_id | UUID | NULL, FK(companies.id) | Target company (optional) |
+   344→   344→   344→| brand_id | UUID | NULL, FK(brands.id) | Target brand (optional) |
+   345→   345→   345→| workspace_id | UUID | NULL, FK(workspaces.id) | Target workspace (optional) |
+   346→   346→   346→| email | VARCHAR(255) | NOT NULL | Invitee email |
+   347→   347→   347→| role_id | UUID | NOT NULL, FK(roles.id) | Role to assign on acceptance |
+   348→   348→   348→| invited_by | UUID | NOT NULL, FK(users.id) | Inviter |
+   349→   349→   349→| token_hash | VARCHAR(255) | NOT NULL | SHA-256 of invitation token |
+   350→   350→   350→| message | TEXT | NULL | Personal message from inviter |
+   351→   351→   351→| status | VARCHAR(20) | NOT NULL, DEFAULT 'pending' | pending, accepted, expired, revoked |
+   352→   352→   352→| expires_at | TIMESTAMPTZ | NOT NULL | Invitation expiry |
+   353→   353→   353→| accepted_at | TIMESTAMPTZ | NULL | Acceptance timestamp |
+   354→   354→   354→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   355→   355→   355→
+   356→   356→   356→**Indexes:**
+   357→   357→   357→- `idx_invitations_email` B-tree (email)
+   358→   358→   358→- `idx_invitations_org_id` B-tree (organization_id)
+   359→   359→   359→- `idx_invitations_status` B-tree (status)
+   360→   360→   360→- `idx_invitations_token_hash` B-tree (token_hash)
+   361→   361→   361→
+   362→   362→   362→---
+   363→   363→   363→
+   364→   364→   364→## 5. AI System
+   365→   365→   365→
+   366→   366→   366→### 5.1 api_providers
+   367→   367→   367→
+   368→   368→   368→| Column | Type | Constraints | Description |
+   369→   369→   369→|--------|------|-------------|-------------|
+   370→   370→   370→| id | UUID | PK, DEFAULT uuid_generate_v7() | Provider identifier |
+   371→   371→   371→| name | VARCHAR(100) | NOT NULL | Provider display name |
+   372→   372→   372→| type | VARCHAR(30) | NOT NULL | openai_compatible, anthropic, google, local, custom |
+   373→   373→   373→| base_url | VARCHAR(500) | NOT NULL | API base URL |
+   374→   374→   374→| api_key_encrypted | TEXT | NOT NULL | AES-256 encrypted API key |
+   375→   375→   375→| api_key_iv | VARCHAR(32) | NOT NULL | Encryption IV |
+   376→   376→   376→| api_key_algorithm | VARCHAR(20) | NOT NULL, DEFAULT 'aes-256-gcm' | Encryption algorithm |
+   377→   377→   377→| is_active | BOOLEAN | NOT NULL, DEFAULT TRUE | Provider enabled/disabled |
+   378→   378→   378→| rate_limit_rpm | INTEGER | NULL | Requests per minute limit |
+   379→   379→   379→| rate_limit_tpm | BIGINT | NULL | Tokens per minute limit |
+   380→   380→   380→| max_concurrent_requests | INTEGER | NULL | Concurrent request limit |
+   381→   381→   381→| connect_timeout_ms | INTEGER | NOT NULL, DEFAULT 10000 | Connection timeout (ms) |
+   382→   382→   382→| read_timeout_ms | INTEGER | NOT NULL, DEFAULT 30000 | Read timeout (ms) |
+   383→   383→   383→| total_timeout_ms | INTEGER | NOT NULL, DEFAULT 60000 | Total timeout (ms) |
+   384→   384→   384→| max_retries | INTEGER | NOT NULL, DEFAULT 3 | Retry count |
+   385→   385→   385→| backoff_multiplier | NUMERIC(3,2) | NOT NULL, DEFAULT 2.0 | Retry backoff multiplier |
+   386→   386→   386→| retryable_status_codes | INTEGER[] | NOT NULL, DEFAULT '{429,500,502,503}' | HTTP codes that trigger retry |
+   387→   387→   387→| health_status | VARCHAR(20) | NOT NULL, DEFAULT 'unknown' | healthy, degraded, down, unknown |
+   388→   388→   388→| last_health_check_at | TIMESTAMPTZ | NULL | Last health check timestamp |
+   389→   389→   389→| custom_headers | JSONB | NOT NULL, DEFAULT '{}' | Additional HTTP headers |
+   390→   390→   390→| settings | JSONB | NOT NULL, DEFAULT '{}' | Provider-specific settings |
+   391→   391→   391→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   392→   392→   392→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   393→   393→   393→
+   394→   394→   394→**Indexes:**
+   395→   395→   395→- `idx_providers_type` B-tree (type)
+   396→   396→   396→- `idx_providers_is_active` B-tree (is_active)
+   397→   397→   397→- `idx_providers_health_status` B-tree (health_status)
+   398→   398→   398→
+   399→   399→   399→---
+   400→   400→   400→
+   401→   401→   401→### 5.2 models
+   402→   402→   402→
+   403→   403→   403→| Column | Type | Constraints | Description |
+   404→   404→   404→|--------|------|-------------|-------------|
+   405→   405→   405→| id | UUID | PK, DEFAULT uuid_generate_v7() | Model identifier |
+   406→   406→   406→| provider_id | UUID | NOT NULL, FK(api_providers.id, ON DELETE CASCADE) | Parent provider |
+   407→   407→   407→| model_id | VARCHAR(100) | NOT NULL | Provider-specific model identifier (e.g., 'gpt-4o', 'claude-3-5-sonnet') |
+   408→   408→   408→| display_name | VARCHAR(100) | NOT NULL | Human-readable model name |
+   409→   409→   409→| model_type | VARCHAR(20) | NOT NULL | chat, embedding, image, audio, multimodal |
+   410→   410→   410→| context_window | INTEGER | NOT NULL | Maximum context window in tokens |
+   411→   411→   411→| max_output_tokens | INTEGER | NOT NULL | Maximum output tokens |
+   412→   412→   412→| supports_streaming | BOOLEAN | NOT NULL, DEFAULT TRUE | SSE streaming support |
+   413→   413→   413→| supports_function_calling | BOOLEAN | NOT NULL, DEFAULT FALSE | Tool/function calling support |
+   414→   414→   414→| supports_vision | BOOLEAN | NOT NULL, DEFAULT FALSE | Image input support |
+   415→   415→   415→| supports_persian | BOOLEAN | NOT NULL, DEFAULT FALSE | Manually tagged Persian optimization |
+   416→   416→   416→| input_cost_per_1m | NUMERIC(10,4) | NOT NULL, DEFAULT 0 | Cost per 1M input tokens (USD) |
+   417→   417→   417→| output_cost_per_1m | NUMERIC(10,4) | NOT NULL, DEFAULT 0 | Cost per 1M output tokens (USD) |
+   418→   418→   418→| is_enabled | BOOLEAN | NOT NULL, DEFAULT TRUE | Model enabled/disabled |
+   419→   419→   419→| capabilities | JSONB | NOT NULL, DEFAULT '{}' | Additional capability flags |
+   420→   420→   420→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   421→   421→   421→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   422→   422→   422→
+   423→   423→   423→**Indexes:**
+   424→   424→   424→- `uniq_models_provider_model_id` UNIQUE (provider_id, model_id)
+   425→   425→   425→- `idx_models_model_type` B-tree (model_type)
+   426→   426→   426→- `idx_models_is_enabled` B-tree (is_enabled)
+   427→   427→   427→- `idx_models_supports_persian` B-tree (supports_persian) WHERE model_type = 'chat'
+   428→   428→   428→
+   429→   429→   429→---
+   430→   430→   430→
+   431→   431→   431→### 5.3 model_routing_rules
+   432→   432→   432→
+   433→   433→   433→| Column | Type | Constraints | Description |
+   434→   434→   434→|--------|------|-------------|-------------|
+   435→   435→   435→| id | UUID | PK, DEFAULT uuid_generate_v7() | Rule identifier |
+   436→   436→   436→| name | VARCHAR(100) | NOT NULL | Rule display name |
+   437→   437→   437→| priority | INTEGER | NOT NULL, DEFAULT 0 | Lower = higher priority |
+   438→   438→   438→| condition_type | VARCHAR(30) | NOT NULL | user_tier, workspace_type, agent_type, model_capability, custom |
+   439→   439→   439→| condition_value | JSONB | NOT NULL | Condition parameters |
+   440→   440→   440→| primary_model_id | UUID | NOT NULL, FK(models.id) | Primary model to route to |
+   441→   441→   441→| fallback_model_id | UUID | NULL, FK(models.id) | Fallback model |
+   442→   442→   442→| is_active | BOOLEAN | NOT NULL, DEFAULT TRUE | Rule enabled/disabled |
+   443→   443→   443→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   444→   444→   444→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   445→   445→   445→
+   446→   446→   446→**Indexes:**
+   447→   447→   447→- `idx_routing_rules_priority` B-tree (priority ASC)
+   448→   448→   448→- `idx_routing_rules_is_active` B-tree (is_active)
+   449→   449→   449→- `idx_routing_rules_condition_type` B-tree (condition_type)
+   450→   450→   450→
+   451→   451→   451→---
+   452→   452→   452→
+   453→   453→   453→### 5.4 agents
+   454→   454→   454→
+   455→   455→   455→| Column | Type | Constraints | Description |
+   456→   456→   456→|--------|------|-------------|-------------|
+   457→   457→   457→| id | UUID | PK, DEFAULT uuid_generate_v7() | Agent identifier |
+   458→   458→   458→| workspace_id | UUID | NOT NULL, FK(workspaces.id, ON DELETE CASCADE) | Parent workspace |
+   459→   459→   459→| name | VARCHAR(100) | NOT NULL | Agent display name |
+   460→   460→   460→| description | TEXT | NULL | Agent description |
+   461→   461→   461→| agent_type | VARCHAR(20) | NOT NULL | chat, rag, tool_use, autonomous, workflow |
+   462→   462→   462→| model_id | UUID | NOT NULL, FK(models.id) | Default model for this agent |
+   463→   463→   463→| system_prompt | TEXT | NOT NULL | System prompt (configurable, not hardcoded) |
+   464→   464→   464→| temperature | NUMERIC(3,2) | NOT NULL, DEFAULT 0.7 | Sampling temperature |
+   465→   465→   465→| top_p | NUMERIC(3,2) | NOT NULL, DEFAULT 0.9 | Nucleus sampling |
+   466→   466→   466→| frequency_penalty | NUMERIC(3,2) | NOT NULL, DEFAULT 0 | Frequency penalty |
+   467→   467→   467→| presence_penalty | NUMERIC(3,2) | NOT NULL, DEFAULT 0 | Presence penalty |
+   468→   468→   468→| max_tokens | INTEGER | NOT NULL, DEFAULT 4096 | Max output tokens |
+   469→   469→   469→| avatar_url | VARCHAR(500) | NULL | Agent avatar |
+   470→   470→   470→| status | VARCHAR(20) | NOT NULL, DEFAULT 'draft' | draft, active, deprecated |
+   471→   471→   471→| rate_limit_per_user | INTEGER | NULL | Max requests per user per hour |
+   472→   472→   472→| rate_limit_per_workspace | INTEGER | NULL | Max requests per workspace per hour |
+   473→   473→   473→| config | JSONB | NOT NULL, DEFAULT '{}' | Extended configuration (tool settings, RAG parameters, etc.) |
+   474→   474→   474→| created_by | UUID | NOT NULL, FK(users.id) | Creator |
+   475→   475→   475→| updated_by | UUID | NULL, FK(users.id) | Last updater |
+   476→   476→   476→| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Creation timestamp |
+   477→   477→   477→| updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Last update timestamp |
+   478→   478→   478→| deleted_at | TIMESTAMPTZ | NULL | Soft delete |
+   479→   479→   479→
+   480→   480→   480→**Indexes:**
+   481→   481→   481→- `idx_agents_workspace_id` B-tree (workspace_id)
+   482→   482→   482→- `idx_agents_model_id` B-tree (model_id)
+   483→   483→   483→- `idx_agents_agent_type` B-tree (agent_type)
+   484→   484→   484→- `idx_agents_status` B-tree (status)
+   485→   485→   485→- `idx_agents_created_by` B-tree (created_by)
+   486→   486→   486→
+   487→   487→   487→---
+   488→   488→   488→
+   489→   489→   489→### 5.5 tools
+   490→   490→   490→
+   491→   491→   491→| Column | Type | Constraints | Description |
+   492→   492→   492→|--------|------|-------------|-------------|
+   493→   493→   493→| id | UUID | PK, DEFAULT uuid_generate_v7() | Tool identifier |
+   494→   494→   494→| name | VARCHAR(100) | NOT NULL | Tool name (machine-readable) |
+   495→   495→   495→| display_name | VARCHAR(100) | NOT NULL | Display name (Persian) |
+   496→   496→   496→| description | TEXT | NOT NULL | Tool description (for AI) |
+   497→   497→   497→| category | VARCHAR(30) | NOT NULL | search, code, data, communication, custom |
+   498→   498→   498→| input_schema | JSONB | NOT NULL | JSON Schema for tool input parameters |
+   499→   499→   499→| handler | VARCHAR(200) | NOT NULL | Tool handler reference (module:method) |
+   500→   500→   500→| is_enabled | BOOLEAN | NOT NULL, DEFAULT TRUE | Tool enabled/disabled |
+
+[showing lines 1-500 of 1123; use offset=501 with limit to continue reading]

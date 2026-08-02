@@ -1,0 +1,502 @@
+     1→     1→     1→# Agent System — Architecture Document
+     2→     2→     2→
+     3→     3→     3→## HotHoosh Enterprise AI Workspace — Complete Agent System Specification
+     4→     4→     4→
+     5→     5→     5→---
+     6→     6→     6→
+     7→     7→     7→## Table of Contents
+     8→     8→     8→
+     9→     9→     9→1. [Overview](#1-overview)
+    10→    10→    10→2. [Agent Types](#2-agent-types)
+    11→    11→    11→3. [Agent Lifecycle](#3-agent-lifecycle)
+    12→    12→    12→4. [Agent Configuration](#4-agent-configuration)
+    13→    13→    13→5. [Prompt Builder](#5-prompt-builder)
+    14→    14→    14→6. [LLM Router](#6-llm-router)
+    15→    15→    15→7. [Context Engine](#7-context-engine)
+    16→    16→    16→8. [Memory Architecture](#8-memory-architecture)
+    17→    17→    17→9. [Knowledge Retrieval](#9-knowledge-retrieval)
+    18→    18→    18→10. [Tool System](#10-tool-system)
+    19→    19→    19→11. [Streaming Architecture](#11-streaming-architecture)
+    20→    20→    20→12. [Conversation Flow](#12-conversation-flow)
+    21→    21→    21→13. [Multi-Provider Management](#13-multi-provider-management)
+    22→    22→    22→14. [MCP Compatibility](#14-mcp-compatibility)
+    23→    23→    23→15. [Monitoring & Observability](#15-monitoring--observability)
+    24→    24→    24→16. [Error Handling & Graceful Degradation](#16-error-handling--graceful-degradation)
+    25→    25→    25→
+    26→    26→    26→---
+    27→    27→    27→
+    28→    28→    28→## 1. Overview
+    29→    29→    29→
+    30→    30→    30→### 1.1 Philosophy
+    31→    31→    31→
+    32→    32→    32→HotHoosh's agent system is the core differentiator between a raw AI model API and a truly enterprise-grade AI workspace. While a raw model API provides a generic interface to a language model — accepting prompts and returning completions — HotHoosh agents are **configured, contextualized, and constrained** entities that embody specific personas, access bounded knowledge, retain persistent memory, and execute defined tools. This transformation from generic model to specialized agent is what enables HotHoosh to deliver value that a simple ChatGPT wrapper cannot.
+    33→    33→    33→
+    34→    34→    34→Per PRD Principle #5, users interact with configurable AI agents, not raw models. Every agent is a purpose-built entity that encapsulates domain expertise, organizational knowledge, user preferences, and functional capabilities. This design ensures that each agent produces responses that are not only intelligent but also **relevant, grounded, and aligned with organizational context** — something no raw model access can guarantee.
+    35→    35→    35→
+    36→    36→    36→### 1.2 Agents vs. Raw Model Access
+    37→    37→    37→
+    38→    38→    38→The distinction between agents and raw model access is fundamental to HotHoosh's architecture:
+    39→    39→    39→
+    40→    40→    40→| Dimension | Raw Model Access | HotHoosh Agent |
+    41→    41→    41→|-----------|-----------------|----------------|
+    42→    42→    42→| **Identity** | Stateless, generic | Named entity with persona, avatar, description |
+    43→    43→    43→| **Knowledge** | None — only what is in the prompt | Bound knowledge bases with Persian-optimized RAG retrieval |
+    44→    44→    44→| **Memory** | None between sessions | Persistent memory packs (context, preference, knowledge, system) |
+    45→    45→    45→| **Tools** | None or manually coded | Declaratively bound tools with sandboxed execution |
+    46→    46→    46→| **Prompt** | User must construct every time | System prompt with template variables, auto-assembled context |
+    47→    47→    47→| **Routing** | Single provider, single model | Multi-provider LLM Router with 5-step routing pipeline |
+    48→    48→    48→| **Governance** | None | Rate limits, workspace isolation, audit logging, RBAC |
+    49→    49→    49→| **Optimization** | None | Token budget allocation, priority reduction, cost optimization |
+    50→    50→    50→| **Streaming** | Manual implementation | SSE with 8 event types, batching, backpressure |
+    51→    51→    51→
+    52→    52→    52→### 1.3 Architecture Positioning
+    53→    53→    53→
+    54→    54→    54→The agent system sits at the center of HotHoosh's backend architecture, integrating all six core engines defined in the Backend Architecture document:
+    55→    55→    55→
+    56→    56→    56→- **LLM Router Engine** (§7 of Backend Architecture): Routes each agent request to the optimal provider and model through a 5-step routing pipeline.
+    57→    57→    57→- **Context Engine** (§8 of Backend Architecture): Assembles the complete context window from knowledge, history, memory, and tool definitions with priority-based token budget allocation.
+    58→    58→    58→- **RAG Engine** (§9 of Backend Architecture): Retrieves relevant knowledge chunks via hybrid search (HNSW vector + BM25 full-text) with Persian NLP optimization.
+    59→    59→    59→- **Memory Engine** (§10 of Backend Architecture): Resolves and assembles hierarchical memory packs for persistent cross-session context.
+    60→    60→    60→- **Tool Engine** (§11 of Backend Architecture): Provides tool discovery, validation, sandboxed execution, and result formatting for agent tool calls.
+    61→    61→    61→- **Streaming Engine** (§12 of Backend Architecture): Delivers AI responses in real-time via SSE with event batching and backpressure management.
+    62→    62→    62→
+    63→    63→    63→### 1.4 Database Foundation
+    64→    64→    64→
+    65→    65→    65→The agent system is grounded in several database tables from the `agents` domain (Database §5):
+    66→    66→    66→
+    67→    67→    67→| Table | Role |
+    68→    68→    68→|-------|------|
+    69→    69→    69→| `agents` | Core agent configuration (type, prompt, parameters, bindings) |
+    70→    70→    70→| `tools` | Tool definitions with JSON Schema input schemas |
+    71→    71→    71→| `agent_tools` | Junction table binding tools to agents with per-agent configuration |
+    72→    72→    72→| `agent_knowledge` | Junction table binding knowledge bases to agents with retrieval parameters |
+    73→    73→    73→| `agent_memory` | Junction table binding memory packs to agents |
+    74→    74→    74→| `api_providers` | AI provider configurations with health monitoring fields |
+    75→    75→    75→| `models` | Model definitions with capability flags and cost data |
+    76→    76→    76→| `model_routing_rules` | Routing rule definitions with conditions and priorities |
+    77→    77→    77→| `chat_sessions` | Conversation sessions tied to agents |
+    78→    78→    78→| `chat_messages` | Immutable messages with branching support |
+    79→    79→    79→
+    80→    80→    80→---
+    81→    81→    81→
+    82→    82→    82→## 2. Agent Types
+    83→    83→    83→
+    84→    84→    84→### 2.1 Overview
+    85→    85→    85→
+    86→    86→    86→HotHoosh defines five distinct agent types per PRD FR-AGENT-002, each designed for a specific interaction pattern and use case. Agent types are stored in the `agents.agent_type` column as one of: `chat`, `rag`, `tool_use`, `autonomous`, or `workflow`. The agent type determines the default configuration, available capabilities, and interaction patterns. While all agent types share the same underlying infrastructure (LLM Router, Context Engine, Streaming Engine), each type configures these engines differently and enables or disables specific features.
+    87→    87→    87→
+    88→    88→    88→### 2.2 Chat Agent
+    89→    89→    89→
+    90→    90→    90→The Chat agent is the foundational agent type — a conversational AI with a configured system prompt, model selection, and sampling parameters. It serves as the general-purpose conversational assistant for any workspace.
+    91→    91→    91→
+    92→    92→    92→**Capabilities:**
+    93→    93→    93→- Conversational interaction via the chat interface
+    94→    94→    94→- Configurable system prompt with template variables
+    95→    95→    95→- Model selection with LLM Router integration
+    96→    96→    96→- Temperature, top_p, frequency_penalty, presence_penalty tuning
+    97→    97→    97→- Conversation history with sliding window management
+    98→    98→    98→- Optional memory pack bindings for persistent context
+    99→    99→    99→- SSE streaming with full event support
+   100→   100→   100→
+   101→   101→   101→**Configuration:**
+   102→   102→   102→- System prompt (required, template-supported)
+   103→   103→   103→- Default model (required, via `agents.model_id`)
+   104→   104→   104→- Sampling parameters: temperature (0.0–2.0), top_p (0.0–1.0), frequency_penalty (0.0–2.0), presence_penalty (0.0–2.0)
+   105→   105→   105→- Max output tokens (default: 4096)
+   106→   106→   106→- Optional memory pack bindings
+   107→   107→   107→
+   108→   108→   108→**Limitations:**
+   109→   109→   109→- No tool execution capability
+   110→   110→   110→- No knowledge base binding (use RAG agent instead)
+   111→   111→   111→- No autonomous action loops
+   112→   112→   112→
+   113→   113→   113→**Use Cases:**
+   114→   114→   114→- General-purpose Q&A for a department
+   115→   115→   115→- Internal helpdesk assistant
+   116→   116→   116→- Onboarding guide for new employees
+   117→   117→   117→- Creative writing or brainstorming partner
+   118→   118→   118→- Language translation assistant
+   119→   119→   119→
+   120→   120→   120→**Typical System Prompt:**
+   121→   121→   121→```
+   122→   122→   122→تو یک دستیار هوشمند برای تیم {team_name} هستی. به زبان فارسی پاسخ بده.
+   123→   123→   123→سبک پاسخگویی: رسمی و حرفه‌ای.
+   124→   124→   124→محدوده: به سوالات مربوط به {department} پاسخ بده.
+   125→   125→   125→```
+   126→   126→   126→
+   127→   127→   127→### 2.3 RAG Agent
+   128→   128→   128→
+   129→   129→   129→The RAG agent extends the Chat agent with Retrieval-Augmented Generation capabilities. It is bound to one or more knowledge bases and automatically retrieves relevant context to ground its responses in organizational knowledge.
+   130→   130→   130→
+   131→   131→   131→**Capabilities:**
+   132→   132→   132→- All Chat agent capabilities
+   133→   133→   133→- Knowledge base binding via `agent_knowledge` table
+   134→   134→   134→- Automatic query embedding and retrieval
+   135→   135→   135→- Hybrid search (vector + BM25) with Reciprocal Rank Fusion
+   136→   136→   136→- Configurable retrieval parameters per knowledge base binding
+   137→   137→   137→- Source citation in responses
+   138→   138→   138→- Persian NLP optimization for knowledge retrieval
+   139→   139→   139→
+   140→   140→   140→**Configuration:**
+   141→   141→   141→- All Chat agent configuration fields
+   142→   142→   142→- Knowledge base bindings (one or more), each with:
+   143→   143→   143→  - `knowledge_base_id` — which knowledge base to query
+   144→   144→   144→  - `relevance_threshold` — minimum similarity score (default: 0.7)
+   145→   145→   145→  - `priority` — retrieval priority (lower = higher, default: 0)
+   146→   146→   146→  - `max_chunks` — maximum chunks to retrieve (default: 10)
+   147→   147→   147→- Optional memory pack bindings
+   148→   148→   148→
+   149→   149→   149→**Retrieval Behavior:**
+   150→   150→   150→When a user sends a message to a RAG agent, the RAG Engine automatically:
+   151→   151→   151→1. Embeds the user's query using the knowledge base's embedding model
+   152→   152→   152→2. Executes parallel vector search (HNSW cosine similarity) and BM25 full-text search
+   153→   153→   153→3. Merges results via Reciprocal Rank Fusion (RRF with k=60)
+   154→   154→   154→4. Filters by relevance threshold
+   155→   155→   155→5. Limits to max_chunks per knowledge base
+   156→   156→   156→6. Injects top results into the context window via the Context Engine
+   157→   157→   157→
+   158→   158→   158→**Use Cases:**
+   159→   159→   159→- Technical documentation assistant
+   160→   160→   160→- Company policy FAQ bot
+   161→   161→   161→- Product knowledge base query agent
+   162→   162→   162→- Legal contract review assistant
+   163→   163→   163→- Customer support agent with product knowledge
+   164→   164→   164→
+   165→   165→   165→### 2.4 Tool-Use Agent
+   166→   166→   166→
+   167→   167→   167→The Tool-use agent extends the Chat agent with the ability to invoke external tools during conversations. Tools allow the agent to perform actions beyond text generation — searching the web, querying databases, executing code, or calling external APIs.
+   168→   168→   168→
+   169→   169→   169→**Capabilities:**
+   170→   170→   170→- All Chat agent capabilities
+   171→   171→   171→- Tool binding via `agent_tools` table
+   172→   172→   172→- Function calling / tool use via the model's native function calling API
+   173→   173→   173→- Tool execution sandboxing with timeout enforcement
+   174→   174→   174→- Tool result formatting and injection back into conversation
+   175→   175→   175→- Multi-step tool loops (up to 5 iterations per message, configurable)
+   176→   176→   176→- Per-agent tool configuration overrides
+   177→   177→   177→
+   178→   178→   178→**Configuration:**
+   179→   179→   179→- All Chat agent configuration fields
+   180→   180→   180→- Tool bindings (one or more), each with:
+   181→   181→   181→  - `tool_id` — which tool to make available
+   182→   182→   182→  - `is_enabled` — whether the tool is active for this agent
+   183→   183→   183→  - `config` — per-agent tool configuration overrides (JSONB)
+   184→   184→   184→- The agent's model MUST have `supports_function_calling = true` (enforced by the LLM Router in Step 1)
+   185→   185→   185→
+   186→   186→   186→**Tool Execution Flow:**
+   187→   187→   187→1. The LLM receives tool definitions in the context as function-calling schemas.
+   188→   188→   188→2. If the LLM determines a tool call is needed, it returns a `tool_call` in its response.
+   189→   189→   189→3. The Tool Engine validates the input against the tool's JSON Schema.
+   190→   190→   190→4. The tool handler is executed with a 30-second timeout.
+   191→   191→   191→5. The result is formatted and injected into the conversation as a `tool` role message.
+   192→   192→   192→6. The LLM continues its response with access to the tool result.
+   193→   193→   193→7. This loop can repeat up to 5 times per user message.
+   194→   194→   194→
+   195→   195→   195→**Use Cases:**
+   196→   196→   196→- Data analysis agent with database query tools
+   197→   197→   197→- Research assistant with web search tools
+   198→   198→   198→- DevOps agent with system monitoring tools
+   199→   199→   199→- Sales agent with CRM query tools
+   200→   200→   200→- Administrative agent with calendar/email integration tools
+   201→   201→   201→
+   202→   202→   202→### 2.5 Autonomous Agent
+   203→   203→   203→
+   204→   204→   204→The Autonomous agent represents the most capable agent type — it can plan, reason, and execute multi-step tasks with minimal human intervention. While it shares the infrastructure of Tool-use agents, it adds an autonomous loop that allows the agent to break complex tasks into steps and execute them sequentially.
+   205→   205→   205→
+   206→   206→   206→**Capabilities:**
+   207→   207→   207→- All Tool-use agent capabilities
+   208→   208→   208→- Multi-step task planning and execution
+   209→   209→   209→- Self-reflection and error recovery
+   210→   210→   210→- Configurable autonomy level (supervised, semi-autonomous, fully autonomous)
+   211→   211→   211→- Task state tracking
+   212→   212→   212→- Human-in-the-loop checkpoints (for supervised mode)
+   213→   213→   213→
+   214→   214→   214→**Configuration:**
+   215→   215→   215→- All Tool-use agent configuration fields
+   216→   216→   216→- Autonomy level: `supervised` (requires human approval for each step), `semi_autonomous` (auto-executes but alerts on ambiguity), `fully_autonomous` (executes without intervention)
+   217→   217→   217→- Maximum steps per task (default: 20)
+   218→   218→   218→- Human approval timeout (for supervised mode, default: 300 seconds)
+   219→   219→   219→- Task planning parameters stored in `agents.config` JSONB field
+   220→   220→   220→
+   221→   221→   221→**Execution Loop:**
+   222→   222→   222→1. User provides a high-level task or goal.
+   223→   223→   223→2. Agent creates an execution plan (thought → action → observation cycle).
+   224→   224→   224→3. For each step:
+   225→   225→   225→   - Agent reasons about the next action.
+   226→   226→   226→   - If supervised: waits for human approval before executing.
+   227→   227→   227→   - Executes the action (tool call or sub-task).
+   228→   228→   228→   - Observes the result.
+   229→   229→   229→   - Updates its plan based on the observation.
+   230→   230→   230→4. Loop continues until the task is complete, max steps reached, or an error occurs.
+   231→   231→   231→5. Final result is returned to the user.
+   232→   232→   232→
+   233→   233→   233→**Use Cases:**
+   234→   234→   234→- Automated report generation (research → analyze → write → format)
+   235→   235→   235→- Multi-step data pipeline orchestration
+   236→   236→   236→- Competitive analysis (search → scrape → compare → summarize)
+   237→   237→   237→- Customer onboarding workflow automation
+   238→   238→   238→- Incident investigation (gather logs → analyze → identify root cause → suggest fix)
+   239→   239→   239→
+   240→   240→   240→### 2.6 Workflow Agent
+   241→   241→   241→
+   242→   242→   242→The Workflow agent orchestrates multi-agent workflows where multiple agents collaborate to complete a complex task. Each step in the workflow is handled by a different specialized agent, and the Workflow agent manages the handoff between them.
+   243→   243→   243→
+   244→   244→   244→**Capabilities:**
+   245→   245→   245→- All Autonomous agent capabilities
+   246→   246→   246→- Multi-agent orchestration
+   247→   247→   247→- Sequential and parallel step execution
+   248→   248→   248→- Conditional branching based on intermediate results
+   249→   249→   249→- Error handling and retry at the workflow level
+   250→   250→   250→- Workflow state persistence
+   251→   251→   251→
+   252→   252→   252→**Configuration:**
+   253→   253→   253→- All Autonomous agent configuration fields
+   254→   254→   254→- Workflow definition stored in `agents.config` JSONB:
+   255→   255→   255→  ```json
+   256→   256→   256→  {
+   257→   257→   257→    "workflow": {
+   258→   258→   258→      "steps": [
+   259→   259→   259→        { "agent_id": "uuid-1", "task": "Research topic X", "timeout": 60 },
+   260→   260→   260→        { "agent_id": "uuid-2", "task": "Analyze research findings", "depends_on": [0] },
+   261→   261→   261→        { "agent_id": "uuid-3", "task": "Write final report", "depends_on": [1] }
+   262→   262→   262→      ],
+   263→   263→   263→      "on_error": "retry_last_step"
+   264→   264→   264→    }
+   265→   265→   265→  }
+   266→   266→   266→  ```
+   267→   267→   267→
+   268→   268→   268→**Use Cases:**
+   269→   269→   269→- Content creation pipeline (research → draft → edit → review)
+   270→   270→   270→- Data processing workflows (extract → transform → load → validate)
+   271→   271→   271→- Multi-department approval processes
+   272→   272→   272→- Customer support escalation chains
+   273→   273→   273→
+   274→   274→   274→**Note:** Per the PRD out-of-scope list (v1.0), the full Workflow Engine is planned for v2.0. The Workflow agent type is defined here for architectural completeness but will have limited functionality in v1.0, focusing on basic sequential multi-agent handoff.
+   275→   275→   275→
+   276→   276→   276→### 2.7 Agent Type Comparison
+   277→   277→   277→
+   278→   278→   278→| Feature | Chat | RAG | Tool-use | Autonomous | Workflow |
+   279→   279→   279→|---------|------|-----|----------|------------|----------|
+   280→   280→   280→| System prompt | ✅ | ✅ | ✅ | ✅ | ✅ |
+   281→   281→   281→| Memory packs | ✅ | ✅ | ✅ | ✅ | ✅ |
+   282→   282→   282→| Knowledge bases | ❌ | ✅ | ❌ | ✅ | ✅ |
+   283→   283→   283→| Tool execution | ❌ | ❌ | ✅ | ✅ | ✅ |
+   284→   284→   284→| Multi-step planning | ❌ | ❌ | ❌ | ✅ | ✅ |
+   285→   285→   285→| Multi-agent orchestration | ❌ | ❌ | ❌ | ❌ | ✅ |
+   286→   286→   286→| Human-in-the-loop | ❌ | ❌ | ❌ | ✅ | ✅ |
+   287→   287→   287→| Function calling required | ❌ | ❌ | ✅ | ✅ | ✅ |
+   288→   288→   288→| v1.0 support | Full | Full | Full | Basic | Planned v2.0 |
+   289→   289→   289→
+   290→   290→   290→---
+   291→   291→   291→
+   292→   292→   292→## 3. Agent Lifecycle
+   293→   293→   293→
+   294→   294→   294→### 3.1 Lifecycle States
+   295→   295→   295→
+   296→   296→   296→Per PRD FR-AGENT-006, every agent progresses through three lifecycle states stored in the `agents.status` column. These states govern which operations are permitted on the agent and whether it can be used in chat sessions.
+   297→   297→   297→
+   298→   298→   298→| State | Description | Visibility | Chat Usability | Editable |
+   299→   299→   299→|-------|-------------|------------|----------------|----------|
+   300→   300→   300→| `draft` | Agent is under configuration. Not yet deployed for general use. | Creator and admins only | ❌ Not usable | ✅ Full edit |
+   301→   301→   301→| `active` | Agent is deployed and available for use in chat sessions. | All workspace members | ✅ Usable | ⚠️ Limited (config changes create new version) |
+   302→   302→   302→| `deprecated` | Agent is retired. Existing sessions remain accessible but no new sessions can be created. | All workspace members (read-only) | ❌ New sessions blocked | ❌ Locked |
+   303→   303→   303→
+   304→   304→   304→### 3.2 State Transitions
+   305→   305→   305→
+   306→   306→   306→```
+   307→   307→   307→┌─────────┐     Activate      ┌─────────┐     Deprecate     ┌─────────────┐
+   308→   308→   308→│  Draft   │ ──────────────→  │ Active  │ ──────────────→  │ Deprecated  │
+   309→   309→   309→└─────────┘                   └─────────┘                   └─────────────┘
+   310→   310→   310→     ↑                              │                              │
+   311→   311→   311→     │         Reactivate            │         Hard Delete          │
+   312→   312→   312→     └──────────────────────────────←┘         (admin only)          ↓
+   313→   313→   313→                                            ┌─────────────┐
+   314→   314→   314→                                            │   Deleted    │
+   315→   315→   315→                                            └─────────────┘
+   316→   316→   316→```
+   317→   317→   317→
+   318→   318→   318→**Transition Rules:**
+   319→   319→   319→
+   320→   320→   320→1. **Draft → Active**: Requires all mandatory configuration to be complete:
+   321→   321→   321→   - System prompt must be non-empty
+   322→   322→   322→   - Default model must be set and enabled
+   323→   323→   323→   - If agent type is `rag`: at least one knowledge base must be bound
+   324→   324→   324→   - If agent type is `tool_use` or `autonomous`: at least one tool must be bound
+   325→   325→   325→   - The agent must pass basic validation (prompt length, token budget feasibility)
+   326→   326→   326→
+   327→   327→   327→2. **Active → Deprecated**: No preconditions. Admin or creator can deprecate at any time. Existing active chat sessions continue to function normally.
+   328→   328→   328→
+   329→   329→   329→3. **Deprecated → Active (Reactivate)**: Allowed if the agent's model is still enabled and all bound resources (knowledge bases, tools, memory packs) are still active. Triggers a re-validation of all bindings.
+   330→   330→   330→
+   331→   331→   331→4. **Any → Deleted**: Soft-delete only (sets `agents.deleted_at`). Hard delete is available to super admins after a grace period (30 days). Hard-deleted agents and their associated data (bindings, chat history) are permanently removed.
+   332→   332→   332→
+   333→   333→   333→### 3.3 Versioning
+   334→   334→   334→
+   335→   335→   335→Active agents can undergo configuration changes. To prevent disruptions to ongoing conversations, configuration changes follow a versioning strategy:
+   336→   336→   336→
+   337→   337→   337→- **Minor changes** (description, avatar, rate limits): Applied immediately without version increment.
+   338→   338→   338→- **Major changes** (system prompt, model, sampling parameters, tool/knowledge/memory bindings): Create a new version. The version number is tracked in the `agents.config` JSONB field under `version`. Existing chat sessions continue with the old version. New chat sessions use the new version.
+   339→   339→   339→- **Version history**: A lightweight version log is maintained for audit purposes, recording what changed, when, and by whom. This does not store full snapshots of every version (to conserve storage) but stores diffs of the changed fields.
+   340→   340→   340→
+   341→   341→   341→### 3.4 Agent Test Console
+   342→   342→   342→
+   343→   343→   343→Per PRD FR-AGENT-007, the agent system provides an interactive test console for draft agents. The test console allows creators to:
+   344→   344→   344→
+   345→   345→   345→1. Select a draft agent and open a temporary chat session.
+   346→   346→   346→2. Send messages and receive AI responses with full streaming support.
+   347→   347→   347→3. Test tool execution, knowledge retrieval, and memory injection.
+   348→   348→   348→4. View the assembled context window (system prompt + memory + knowledge + tools) before it is sent to the LLM — this is critical for debugging prompt engineering.
+   349→   349→   349→5. View token usage breakdown per context source.
+   350→   350→   350→6. Compare responses across different models by switching the model for test sessions.
+   351→   351→   351→
+   352→   352→   352→Test console sessions are ephemeral — they are not persisted to `chat_sessions` and do not count toward usage quotas or billing. They are marked with a special `test_session` flag in Redis and cleaned up after 1 hour of inactivity.
+   353→   353→   353→
+   354→   354→   354→---
+   355→   355→   355→
+   356→   356→   356→## 4. Agent Configuration
+   357→   357→   357→
+   358→   358→   358→### 4.1 Configuration Fields
+   359→   359→   359→
+   360→   360→   360→The `agents` table stores all agent configuration. Below is the complete set of configurable fields:
+   361→   361→   361→
+   362→   362→   362→| Field | Column | Type | Default | Required | Description |
+   363→   363→   363→|-------|--------|------|---------|----------|-------------|
+   364→   364→   364→| Name | `name` | VARCHAR(100) | — | ✅ | Agent display name (Persian) |
+   365→   365→   365→| Description | `description` | TEXT | NULL | ❌ | Agent description for discovery |
+   366→   366→   366→| Type | `agent_type` | VARCHAR(20) | — | ✅ | `chat`, `rag`, `tool_use`, `autonomous`, `workflow` |
+   367→   367→   367→| Default Model | `model_id` | UUID FK | — | ✅ | Default model from `models` table |
+   368→   368→   368→| System Prompt | `system_prompt` | TEXT | — | ✅ | Configurable system prompt (template-supported) |
+   369→   369→   369→| Temperature | `temperature` | NUMERIC(3,2) | 0.7 | ❌ | Sampling temperature (0.0–2.0) |
+   370→   370→   370→| Top P | `top_p` | NUMERIC(3,2) | 0.9 | ❌ | Nucleus sampling threshold (0.0–1.0) |
+   371→   371→   371→| Frequency Penalty | `frequency_penalty` | NUMERIC(3,2) | 0 | ❌ | Reduce repetition of frequent tokens (0.0–2.0) |
+   372→   372→   372→| Presence Penalty | `presence_penalty` | NUMERIC(3,2) | 0 | ❌ | Encourage topic diversity (0.0–2.0) |
+   373→   373→   373→| Max Tokens | `max_tokens` | INTEGER | 4096 | ❌ | Maximum output tokens per response |
+   374→   374→   374→| Avatar | `avatar_url` | VARCHAR(500) | NULL | ❌ | Agent avatar image URL |
+   375→   375→   375→| Rate Limit (User) | `rate_limit_per_user` | INTEGER | NULL | ❌ | Max requests per user per hour |
+   376→   376→   376→| Rate Limit (Workspace) | `rate_limit_per_workspace` | INTEGER | NULL | ❌ | Max requests per workspace per hour |
+   377→   377→   377→| Extended Config | `config` | JSONB | `{}` | ❌ | Agent-type-specific settings |
+   378→   378→   378→
+   379→   379→   379→### 4.2 Sampling Parameters
+   380→   380→   380→
+   381→   381→   381→The sampling parameters control the randomness and creativity of the agent's responses. These are passed directly to the LLM API call and must be carefully tuned for each agent's use case.
+   382→   382→   382→
+   383→   383→   383→| Parameter | Range | Effect of Low Value | Effect of High Value | Recommended For |
+   384→   384→   384→|-----------|-------|---------------------|----------------------|-----------------|
+   385→   385→   385→| `temperature` | 0.0–2.0 | Deterministic, factual | Creative, varied | Factual agents: 0.0–0.3; Creative: 0.7–1.0; Code: 0.0–0.2 |
+   386→   386→   386→| `top_p` | 0.0–1.0 | Only most probable tokens | Broader token selection | Usually paired with temperature; default 0.9 is a good starting point |
+   387→   387→   387→| `frequency_penalty` | 0.0–2.0 | No repetition penalty | Strongly penalizes repetition | Increase for tasks prone to repetitive output (summarization, coding) |
+   388→   388→   388→| `presence_penalty` | 0.0–2.0 | No topic penalty | Encourages new topics | Increase for brainstorming and exploration tasks |
+   389→   389→   389→
+   390→   390→   390→### 4.3 Extended Configuration (`config` JSONB)
+   391→   391→   391→
+   392→   392→   392→The `config` JSONB field stores agent-type-specific settings that don't fit into the fixed schema columns:
+   393→   393→   393→
+   394→   394→   394→**For RAG agents:**
+   395→   395→   395→```json
+   396→   396→   396→{
+   397→   397→   397→  "rag": {
+   398→   398→   398→    "auto_retrieve": true,
+   399→   399→   399→    "max_total_chunks": 20,
+   400→   400→   400→    "include_sources": true,
+   401→   401→   401→    "chunk_overlap_window": true
+   402→   402→   402→  }
+   403→   403→   403→}
+   404→   404→   404→```
+   405→   405→   405→
+   406→   406→   406→**For Tool-use agents:**
+   407→   407→   407→```json
+   408→   408→   408→{
+   409→   409→   409→  "tools": {
+   410→   410→   410→    "max_tool_calls_per_message": 5,
+   411→   411→   411→    "tool_execution_timeout_ms": 30000,
+   412→   412→   412→    "require_confirmation_for_destructive": true
+   413→   413→   413→  }
+   414→   414→   414→}
+   415→   415→   415→```
+   416→   416→   416→
+   417→   417→   417→**For Autonomous agents:**
+   418→   418→   418→```json
+   419→   419→   419→{
+   420→   420→   420→  "autonomous": {
+   421→   421→   421→    "autonomy_level": "semi_autonomous",
+   422→   422→   422→    "max_steps": 20,
+   423→   423→   423→    "human_approval_timeout_ms": 300000,
+   424→   424→   424→    "planning_model_id": "uuid-of-planning-model"
+   425→   425→   425→  }
+   426→   426→   426→}
+   427→   427→   427→```
+   428→   428→   428→
+   429→   429→   429→**For Workflow agents:**
+   430→   430→   430→```json
+   431→   431→   431→{
+   432→   432→   432→  "workflow": {
+   433→   433→   433→    "steps": [...],
+   434→   434→   434→    "on_error": "retry_last_step",
+   435→   435→   435→    "max_step_retries": 3
+   436→   436→   436→  }
+   437→   437→   437→}
+   438→   438→   438→```
+   439→   439→   439→
+   440→   440→   440→### 4.4 Tool Bindings
+   441→   441→   441→
+   442→   442→   442→Tools are bound to agents via the `agent_tools` junction table. Each binding record includes:
+   443→   443→   443→
+   444→   444→   444→| Field | Column | Description |
+   445→   445→   445→|-------|--------|-------------|
+   446→   446→   446→| Agent | `agent_id` | FK to `agents.id` |
+   447→   447→   447→| Tool | `tool_id` | FK to `tools.id` |
+   448→   448→   448→| Enabled | `is_enabled` | Whether this tool is active for this agent (allows temporary disabling without removing the binding) |
+   449→   449→   449→| Configuration | `config` | Per-agent tool configuration overrides (e.g., different default parameters, access scopes) |
+   450→   450→   450→
+   451→   451→   451→When a Tool-use or Autonomous agent is activated, the Tool Engine retrieves all enabled bindings and loads the corresponding tool definitions (name, description, input_schema) for inclusion in the LLM's function-calling context.
+   452→   452→   452→
+   453→   453→   453→### 4.5 Knowledge Bindings
+   454→   454→   454→
+   455→   455→   455→Knowledge bases are bound to agents via the `agent_knowledge` junction table. Each binding record includes retrieval-specific parameters:
+   456→   456→   456→
+   457→   457→   457→| Field | Column | Default | Description |
+   458→   458→   458→|-------|--------|---------|-------------|
+   459→   459→   459→| Knowledge Base | `knowledge_base_id` | — | FK to `knowledge_bases.id` |
+   460→   460→   460→| Relevance Threshold | `relevance_threshold` | 0.7 | Minimum similarity score (0.0–1.0). Chunks below this threshold are excluded. |
+   461→   461→   461→| Priority | `priority` | 0 | Retrieval priority. Lower values are processed first when multiple knowledge bases are bound. |
+   462→   462→   462→| Max Chunks | `max_chunks` | 10 | Maximum number of chunks to retrieve from this knowledge base per query. |
+   463→   463→   463→
+   464→   464→   464→The `relevance_threshold` and `max_chunks` parameters allow fine-tuned control over retrieval quality versus context window consumption. A higher threshold yields more precise results but may return fewer chunks. A lower `max_chunks` conserves context window space but may miss relevant information.
+   465→   465→   465→
+   466→   466→   466→### 4.6 Memory Bindings
+   467→   467→   467→
+   468→   468→   468→Memory packs are bound to agents via the `agent_memory` junction table. This is a simple binding — no additional configuration is needed since memory pack resolution and prioritization are handled by the Memory Engine.
+   469→   469→   469→
+   470→   470→   470→Multiple memory packs can be bound to a single agent. The Memory Engine resolves all bound packs, assembles them hierarchically (workspace → brand → company → org), deduplicates, and injects the formatted content into the system prompt.
+   471→   471→   471→
+   472→   472→   472→---
+   473→   473→   473→
+   474→   474→   474→## 5. Prompt Builder
+   475→   475→   475→
+   476→   476→   476→### 5.1 Overview
+   477→   477→   477→
+   478→   478→   478→The Prompt Builder is the subsystem responsible for constructing the final system prompt that is sent to the LLM. It takes the agent's base `system_prompt` template, injects dynamic context (memory, workspace metadata, user information), and produces a complete, ready-to-send system message. Per Engineering Rules, **system prompts are never hardcoded** — they are always constructed from configurable templates stored in the database.
+   479→   479→   479→
+   480→   480→   480→### 5.2 Template System
+   481→   481→   481→
+   482→   482→   482→System prompts use a `{{variable}}` template syntax for dynamic variable injection. Variables are resolved at request time by the Prompt Builder before the context window is assembled.
+   483→   483→   483→
+   484→   484→   484→**Supported Template Variables:**
+   485→   485→   485→
+   486→   486→   486→| Variable | Source | Example Value |
+   487→   487→   487→|----------|--------|---------------|
+   488→   488→   488→| `{{workspace_name}}` | `workspaces.name` | "تیم بازاریابی" |
+   489→   489→   489→| `{{user_name}}` | `users.display_name` | "علی محمدی" |
+   490→   490→   490→| `{{user_role}}` | User's workspace role | "عضو" |
+   491→   491→   491→| `{{current_date}}` | Server time (Solar Hijri) | "۱۴۰۴/۰۴/۱۵" |
+   492→   492→   492→| `{{current_time}}` | Server time | "۱۴:۳۰" |
+   493→   493→   493→| `{{language}}` | User's language preference | "فارسی" |
+   494→   494→   494→| `{{agent_name}}` | `agents.name` | "دستیار مالی" |
+   495→   495→   495→| `{{organization_name}}` | `organizations.name` | "شرکت فناوری نمونه" |
+   496→   496→   496→
+   497→   497→   497→**Template Example:**
+   498→   498→   498→```
+   499→   499→   499→تو {{agent_name}}، دستیار هوشمند سازمان {{organization_name}} هستی.
+   500→   500→   500→
+
+[showing lines 1-500 of 1760; use offset=501 with limit to continue reading]

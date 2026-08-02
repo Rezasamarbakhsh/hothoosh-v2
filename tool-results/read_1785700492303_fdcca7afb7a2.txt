@@ -1,0 +1,522 @@
+   201→   201→| Component | Behavior |
+   202→   202→|-----------|----------|
+   203→   203→| **Sidebar toggle (☰)** | Collapses/expands the sidebar. Collapsed state shows icons only (48px width). Expanded state shows icons + labels (240px width). Preference persisted per user in Zustand store. |
+   204→   204→| **Logo** | HotHoosh wordmark. Clicking navigates to `/chat`. |
+   205→   205→| **Workspace Switcher** | Dropdown/combobox showing all workspaces the user belongs to, grouped by brand/company/org. Changing workspace reloads all workspace-scoped data (agents, knowledge bases, memory packs, chat sessions). |
+   206→   206→| **Command Palette (⌘K)** | Opens the global command palette for search and quick actions. See §8 for full details. |
+   207→   207→| **User Menu (▾)** | Avatar + display name. Dropdown: Profile (→ /settings), Keyboard Shortcuts, Enter Admin (→ /admin/dashboard, permission-gated), Theme Toggle, Logout. |
+   208→   208→| **Main Nav Items** | Five primary navigation items: Chat, Agents, Knowledge, Memory, Settings. Each is an icon + label. Active state indicated by accent color + inline-start border. |
+   209→   209→
+   210→   210→**Secondary navigation within pages:**
+   211→   211→
+   212→   212→- **Chat**: Within `/chat`, a sub-sidebar (or panel) shows the conversation history list. Within `/chat/[chatId]`, a branch selector allows navigating between conversation branches.
+   213→   213→- **Agents**: Within `/agents/[agentId]`, a tab bar provides navigation between Configuration, Knowledge, Memory, Tools, Test Console, and Deployment sub-views.
+   214→   214→- **Knowledge**: Within `/knowledge/[kbId]`, a tab bar provides navigation between Documents, Chunks, Search Test, and Settings sub-views.
+   215→   215→- **Memory**: The memory pack list page includes inline expanders for version history rather than a separate page.
+   216→   216→
+   217→   217→### 3.2 Admin Navigation
+   218→   218→
+   219→   219→The admin navigation is built for management, monitoring, and configuration. It prioritizes data density, batch operations, and cross-tenant visibility. Full specification is in Admin-Panel.md §9.2.
+   220→   220→
+   221→   221→```
+   222→   222→┌─────────────────────────────────────────────────────────────┐
+   223→   223→│  Top Bar (h-14, glass-panel-solid)                           │
+   224→   224→│  [Logo] [Tenant Scope Selector ▾] [Search ⌘K] [🔔] [User ▾]│
+   225→   225→├──────┬──────────────────────────────────────────────────────┤
+   226→   226→│ Side │  Breadcrumb Trail                                      │
+   227→   227→│ bar  ├──────────────────────────────────────────────────────┤
+   228→   228→│      │  Page Header + Actions                                 │
+   229→   229→│[Dash]├──────────────────────────────────────────────────────┤
+   230→   230→│      │                                                        │
+   231→   231→│ USERS│  Page Content                                          │
+   232→   232→│ Roles│  (data tables, forms, dashboards, log streams)         │
+   233→   233→│      │                                                        │
+   234→   234→│ ORGS │                                                        │
+   235→   235→│Comps │                                                        │
+   236→   236→│Brnds │                                                        │
+   237→   237→│      │                                                        │
+   238→   238→│ AGNTS│                                                        │
+   239→   239→│Memory│                                                        │
+   240→   240→│Know. │                                                        │
+   241→   241→│API PV│                                                        │
+   242→   242→│Models│                                                        │
+   243→   243→│      │                                                        │
+   244→   244→│ USAGE│                                                        │
+   245→   245→│BILL. │                                                        │
+   246→   246→│Audit │                                                        │
+   247→   247→│Logs  │                                                        │
+   248→   248→│      │                                                        │
+   249→   249→│SETT. │                                                        │
+   250→   250→├──────┴──────────────────────────────────────────────────────┤
+   251→   251→```
+   252→   252→
+   253→   253→**Key differences from workspace navigation:**
+   254→   254→
+   255→   255→| Aspect | Workspace | Admin |
+   256→   256→|--------|-----------|-------|
+   257→   257→| Scope control | Workspace Switcher (single workspace) | Tenant Scope Selector (any org/company/brand in hierarchy) |
+   258→   258→| Navigation density | 5 items, spacious | 16 items in 5 groups, compact |
+   259→   259→| Primary content | Conversational, content-focused | Tabular, data-dense |
+   260→   260→| Breadcrumbs | Not used (flat structure) | Always present, auto-generated from route |
+   261→   261→| Notifications | In-app toast only | Bell icon with dropdown in top bar |
+   262→   262→| Search scope | Workspace entities only | All admin entities across tenant scope |
+   263→   263→
+   264→   264→### 3.3 Navigating Between Workspace and Admin
+   265→   265→
+   266→   266→The two navigation paradigms are separated at the application level — `apps/web` (workspace) and `apps/admin` (admin panel) are distinct Next.js applications with separate route trees. Transition between them uses a full navigation (not a client-side transition).
+   267→   267→
+   268→   268→| Direction | Mechanism |
+   269→   269→|-----------|-----------|
+   270→   270→| **Workspace → Admin** | User Menu → "ورود به پنل مدیریت" (Enter Admin) link. Permission-gated: only visible to users with any `admin:*` permission. Navigates to `/admin/dashboard`. |
+   271→   271→| **Admin → Workspace** | User Menu → "ورود به فضای کار" (Enter Workspace) link. Always visible. Navigates to `/chat`. |
+   272→   272→| **Deep link** | Both apps share the same auth domain. A user with a bookmark to `/admin/users` is authenticated via the same JWT. If they lack `admin:users:read`, the route-level middleware redirects to `/admin/dashboard`. |
+   273→   273→
+   274→   274→Both apps share the same dual-token JWT authentication. The refresh token is stored as an HttpOnly cookie scoped to the root domain, so it is automatically sent with requests to either app. No re-authentication is required when switching between workspace and admin.
+   275→   275→
+   276→   276→---
+   277→   277→
+   278→   278→## 4. Content Hierarchy
+   279→   279→
+   280→   280→### 4.1 Tenant Hierarchy
+   281→   281→
+   282→   282→All content in HotHoosh is scoped within a four-level tenant hierarchy. The hierarchy determines ownership, access control, and content visibility.
+   283→   283→
+   284→   284→```
+   285→   285→Organization (سازمان)
+   286→   286→├── Company A (شرکت الف)
+   287→   287→│   ├── Brand A1 (برند الف۱)
+   288→   288→│   │   ├── Workspace A1a (فضای کار الف۱الف)
+   289→   289→│   │   │   ├── Agents
+   290→   290→│   │   │   ├── Knowledge Bases
+   291→   291→│   │   │   ├── Memory Packs
+   292→   292→│   │   │   └── Chat Sessions
+   293→   293→│   │   └── Workspace A1b (فضای کار الف۱ب)
+   294→   294→│   └── Brand A2 (برند الف۲)
+   295→   295→├── Company B (شرکت ب)
+   296→   296→└── Shared Resources (Organization-level)
+   297→   297→    ├── Default Agents
+   298→   298→    ├── Organization Memory
+   299→   299→    └── Organization Knowledge Bases
+   300→   300→```
+   301→   301→
+   302→   302→| Tenant Level | Owns | Inherits From |
+   303→   303→|-------------|------|---------------|
+   304→   304→| **Organization** | Default agents, org-level knowledge bases, org memory packs, billing, subscription plan, security policies | — (root) |
+   305→   305→| **Company** | Company-specific agents, knowledge bases, memory packs, company-level settings | Organization defaults |
+   306→   306→| **Brand** | Brand-specific agents, knowledge bases, memory packs, brand identity settings | Company + Organization defaults |
+   307→   307→| **Workspace** | Workspace-scoped agents, knowledge bases, memory packs, all chat sessions | Brand + Company + Organization defaults |
+   308→   308→
+   309→   309→**Content access rules:**
+   310→   310→
+   311→   311→- A user assigned to a Workspace sees: workspace resources + brand resources + company resources + organization resources (cumulative, read-only above their level).
+   312→   312→- A user assigned to an Organization sees all resources within the entire hierarchy.
+   313→   313→- Admin panel data is filtered by the Tenant Scope Selector. Super Admins see all organizations.
+   314→   314→
+   315→   315→### 4.2 Content Within a Workspace
+   316→   316→
+   317→   317→Each workspace is a self-contained unit with its own set of AI resources. The content within a workspace is organized into four primary entity types:
+   318→   318→
+   319→   319→```
+   320→   320→Workspace
+   321→   321→├── Agents (عوامل هوشمند)
+   322→   322→│   ├── Agent: General Assistant
+   323→   323→│   │   ├── Type: Chat
+   324→   324→│   │   ├── System Prompt
+   325→   325→│   │   ├── Model Binding (with fallback chain)
+   326→   326→│   │   ├── Knowledge Base Bindings
+   327→   327→│   │   ├── Memory Pack Bindings
+   328→   328→│   │   ├── Tool Bindings
+   329→   329→│   │   ├── Rate Limits
+   330→   330→│   │   └── Status: Draft → Active → Deprecated
+   331→   331→│   ├── Agent: RAG Researcher
+   332→   332→│   └── Agent: Code Executor
+   333→   333→│
+   334→   334→├── Knowledge Bases (پایگاه‌های دانش)
+   335→   335→│   ├── Knowledge Base: Product Docs
+   336→   336→│   │   ├── Documents (PDF, DOCX, TXT, MD, etc.)
+   337→   337→│   │   ├── Chunks (auto-generated, with metadata)
+   338→   338→│   │   ├── Embeddings (vector indices)
+   339→   339→│   │   ├── Retrieval Config (top-K, threshold, hybrid weight)
+   340→   340→│   │   └── Processing Status (per document)
+   341→   341→│   └── Knowledge Base: Internal Policies
+   342→   342→│
+   343→   343→├── Memory Packs (بسته‌های حافظه)
+   344→   344→│   ├── Memory Pack: Team Context (Type: Context)
+   345→   345→│   ├── Memory Pack: User Preferences (Type: Preference)
+   346→   346→│   ├── Memory Pack: Domain Knowledge (Type: Knowledge)
+   347→   347→│   └── Memory Pack: System Instructions (Type: System)
+   348→   348→│
+   349→   349→└── Chat Sessions (مکالمات)
+   350→   350→    ├── Session 1
+   351→   351→    │   ├── Messages (immutable, with branching)
+   352→   352→│   │   ├── Agent used
+   353→   353→    │   │   ├── Knowledge context (injected)
+   354→   354→    │   ├── Memory context (injected)
+   355→   355→    │   └── Usage log (tokens per message)
+   356→   356→    └── Session 2
+   357→   357→```
+   358→   358→
+   359→   359→**Entity relationships:**
+   360→   360→
+   361→   361→| Relationship | Description |
+   362→   362→|-------------|-------------|
+   363→   363→| Agent → Knowledge Base | Many-to-many. An agent can query multiple knowledge bases. A knowledge base can be bound to multiple agents. |
+   364→   364→| Agent → Memory Pack | Many-to-many. Memory packs inject persistent context into agent conversations. |
+   365→   365→| Agent → Tools | Many-to-many. Tools are capabilities (search, code execution, API calls) bound to agents. |
+   366→   366→| Chat Session → Agent | Many-to-one. Each session is associated with the agent used at creation (switchable mid-session). |
+   367→   367→| Chat Session → Knowledge Base | Transitive via agent. The session's agent's knowledge bindings determine retrieval scope. |
+   368→   368→| Chat Message → Branch | A message can have multiple branches (replies from the same parent). Navigated via `parent_message_id` + `branch_index`. |
+   369→   369→
+   370→   370→### 4.3 Content Within Admin
+   371→   371→
+   372→   372→The admin panel organizes content into five functional domains, each corresponding to a sidebar navigation group:
+   373→   373→
+   374→   374→```
+   375→   375→Admin Content
+   376→   376→├── User Management
+   377→   377→│   ├── Users (accounts, profiles, sessions, activity)
+   378→   378→│   └── Roles & Permissions (role definitions, permission assignments, policy templates)
+   379→   379→│
+   380→   380→├── Organizational Structure
+   381→   381→│   ├── Organizations (top-level entities, billing owners)
+   382→   382→│   ├── Companies (sub-organizations with own settings)
+   383→   383→│   └── Brands (sub-companies with brand-specific identity)
+   384→   384→│
+   385→   385→├── AI Infrastructure
+   386→   386→│   ├── Agents (cross-workspace agent oversight, deployment lifecycle)
+   387→   387→│   ├── Memory Packs (cross-workpack memory oversight)
+   388→   388→│   ├── Knowledge Bases (cross-workspace knowledge oversight, storage stats)
+   389→   389→│   ├── API Providers (credentials, health monitoring, key rotation)
+   390→   390→│   └── Models (configuration, routing rules, cost parameters, comparison)
+   391→   391→│
+   392→   392→├── Operations
+   393→   393→│   ├── Usage (token analytics, cost tracking, per-model/per-workspace breakdowns)
+   394→   394→│   ├── Billing (subscription plans, invoices, payment methods, Iranian gateway integration)
+   395→   395→│   ├── Audit Logs (immutable record of all mutations: who, what, when, where)
+   396→   396→│   └── System Logs (real-time SSE streaming of application logs for DevOps)
+   397→   397→│
+   398→   398→└── Settings
+   399→   399→    ├── General (platform defaults, feature flags, branding)
+   400→   400→    └── Security (password policy, 2FA enforcement, lockout rules, session limits)
+   401→   401→```
+   402→   402→
+   403→   403→---
+   404→   404→
+   405→   405→## 5. URL Structure
+   406→   406→
+   407→   407→### 5.1 Workspace URLs
+   408→   408→
+   409→   409→Workspace URLs live under the `apps/web` Next.js application. The root domain serves the workspace app by default.
+   410→   410→
+   411→   411→```
+   412→   412→Pattern                                    Purpose
+   413→   413→─────────────────────────────────────────────────────────────
+   414→   414→/login                                     Authentication
+   415→   415→/register                                  Invitation-based registration
+   416→   416→/forgot-password                           Password reset
+   417→   417→/chat                                      Chat session list
+   418→   418→/chat/{chatId}                             Active chat session
+   419→   419→/agents                                    Agent gallery
+   420→   420→/agents/{agentId}                          Agent detail / test console
+   421→   421→/knowledge                                 Knowledge base list
+   422→   422→/knowledge/{kbId}                          Knowledge base detail
+   423→   423→/memory                                    Memory pack list
+   424→   424→/settings                                  User settings
+   425→   425→```
+   426→   426→
+   427→   427→**URL conventions:**
+   428→   428→
+   429→   429→- All workspace routes are top-level (no `/workspace/` prefix). The workspace is the default context.
+   430→   430→- Entity identifiers use UUID v7 (e.g., `/chat/01956b2a-3f1c-7000-8000-000000000001`).
+   431→   431→- Query parameters are used for filtering and state within pages (e.g., `/agents?status=active&type=rag`).
+   432→   432→- The root `/` redirects to `/chat`.
+   433→   433→
+   434→   434→### 5.2 Admin URLs
+   435→   435→
+   436→   436→Admin URLs live under the `apps/admin` Next.js application, all prefixed with `/admin/`. In production, the admin app is served from a subdomain or path (e.g., `admin.hothoosh.ir` or `hothoosh.ir/admin`).
+   437→   437→
+   438→   438→```
+   439→   439→Pattern                                         Purpose
+   440→   440→─────────────────────────────────────────────────────────────
+   441→   441→/admin                                           Redirect → /admin/dashboard
+   442→   442→/admin/dashboard                                 KPI dashboard
+   443→   443→/admin/users                                     User list
+   444→   444→/admin/users/{userId}                            User detail
+   445→   445→/admin/roles                                     Roles & permissions
+   446→   446→/admin/organizations                             Organization list
+   447→   447→/admin/organizations/{orgId}                     Organization detail
+   448→   448→/admin/companies                                 Company list
+   449→   449→/admin/companies/{companyId}                     Company detail
+   450→   450→/admin/brands                                    Brand list
+   451→   451→/admin/brands/{brandId}                          Brand detail
+   452→   452→/admin/agents                                    Agent management
+   453→   453→/admin/agents/{agentId}                          Agent detail
+   454→   454→/admin/memory-packs                              Memory pack management
+   455→   455→/admin/knowledge                                 Knowledge base management
+   456→   456→/admin/knowledge/{kbId}                          Knowledge base detail
+   457→   457→/admin/api-providers                             API provider management
+   458→   458→/admin/api-providers/{providerId}                Provider detail
+   459→   459→/admin/models                                    Model configuration
+   460→   460→/admin/models/{modelId}                          Model detail
+   461→   461→/admin/usage                                     Usage analytics
+   462→   462→/admin/billing                                   Billing & invoices
+   463→   463→/admin/audit-logs                                Audit log viewer
+   464→   464→/admin/logs                                      System log stream
+   465→   465→/admin/settings                                  General settings
+   466→   466→/admin/settings/security                         Security settings
+   467→   467→```
+   468→   468→
+   469→   469→**URL conventions:**
+   470→   470→
+   471→   471→- All admin routes are prefixed with `/admin/`.
+   472→   472→- Entity identifiers use UUID v7.
+   473→   473→- List pages support standard query parameters for state:
+   474→   474→  - `?page=2` — Pagination
+   475→   475→  - `?sort=created_at&order=desc` — Sorting
+   476→   476→  - `?status=active` — Filtering
+   477→   477→  - `?search=query` — Text search
+   478→   478→  - `?scope=org:{orgId}` — Tenant scope override
+   479→   479→
+   480→   480→### 5.3 URL Design Rules
+   481→   481→
+   482→   482→| Rule | Rationale |
+   483→   483→|------|-----------|
+   484→   484→| Kebab-case for route segments (`memory-packs`, `api-providers`) | Readability, SEO, no encoding issues with Persian content |
+   485→   485→| Singular nouns for entity routes (`/admin/users`, not `/admin/user`) | RESTful convention, consistent with API endpoints |
+   486→   486→| No nested routes beyond two levels for workspace | Keeps workspace navigation flat and fast |
+   487→   487→| Max three route segments for admin detail pages | `/admin/{entity}/{id}` — prevents deep nesting |
+   488→   488→| Query parameters for filtering, not route segments | `/admin/users?status=active` not `/admin/users/status/active` — enables URL sharing with filters preserved |
+   489→   489→| Tenant scope via query parameter, not route | Scope is a cross-cutting concern, not a page hierarchy |
+   490→   490→
+   491→   491→---
+   492→   492→
+   493→   493→## 6. Page Types
+   494→   494→
+   495→   495→HotHoosh uses eight distinct page types across both the workspace and admin applications. Each type has a consistent layout pattern, interaction model, and component composition.
+   496→   496→
+   497→   497→| Page Type | Description | Workspace Examples | Admin Examples |
+   498→   498→|-----------|-------------|-------------------|----------------|
+   499→   499→| **List** | Displays a collection of entities in a scannable, filterable, sortable format. Primary action (create) is always prominent. Supports pagination, bulk selection, and inline status indicators. | `/chat` (session list), `/agents` (gallery), `/knowledge` (KB list), `/memory` (pack list) | `/admin/users`, `/admin/organizations`, `/admin/companies`, `/admin/brands`, `/admin/agents`, `/admin/knowledge`, `/admin/memory-packs`, `/admin/api-providers`, `/admin/models` |
+   500→   500→| **Detail** | Shows a single entity's full information. Typically a two-column layout: main content area + sidebar with related entities and metadata. Includes contextual actions (edit, delete, deploy). | `/agents/[agentId]` (agent config + test console), `/knowledge/[kbId]` (documents + settings) | `/admin/users/[userId]` (profile + activity), `/admin/organizations/[orgId]`, `/admin/companies/[companyId]`, `/admin/brands/[brandId]`, `/admin/agents/[agentId]` |
+   501→   501→| **Form / Wizard** | Multi-step or single-step form for creating or editing an entity. Uses React Hook Form + Zod validation. May include live preview or test panels. | Agent creation wizard, knowledge base creation, memory pack editor | User creation dialog, organization creation, API provider configuration, model routing rule editor |
+   502→   502→| **Dashboard** | KPI-focused page with stat cards, charts, and activity feeds. Data is pulled via TanStack Query with configurable refresh intervals. No primary content creation action. | *(not used in workspace v1)* | `/admin/dashboard` (platform KPIs), `/admin/usage` (analytics dashboard), `/admin/billing` (financial overview) |
+   503→   503→| **Settings** | Form-like page for configuring preferences and policies. Organized into sections/tabs. Changes auto-save or require explicit save. | `/settings` (user preferences, profile, 2FA, theme, language) | `/admin/settings` (general platform config), `/admin/settings/security` (security policies) |
+   504→   504→| **Editor** | Rich content editing interface with toolbar, preview, and version controls. Optimized for text-heavy content. | Memory pack content editor, agent system prompt editor | *(not used in admin v1)* |
+   505→   505→| **Viewer** | Read-only display of a specific content item or stream. May include copy, download, or share actions but no edit capabilities. | Chat session viewer (messages are immutable), document preview in knowledge base | `/admin/audit-logs` (immutable audit entries), `/admin/usage` (read-only analytics) |
+   506→   506→| **Log Stream** | Real-time display of sequential events using SSE (Server-Sent Events). Auto-scrolls, supports pause/resume, and includes filtering by level/source. | *(not used in workspace v1)* | `/admin/logs` (system log streaming) |
+   507→   507→
+   508→   508→**Page type composition rules:**
+   509→   509→
+   510→   510→- A detail page may embed a form (edit mode) or a viewer (read mode) as a sub-component.
+   511→   511→- A list page may include inline creation via a slide-over panel (e.g., user creation in admin) rather than navigating to a separate form page.
+   512→   512→- The chat session page (`/chat/[chatId]`) is a unique hybrid: it is a real-time streaming viewer with an input component. It does not fit neatly into a single page type and is treated as a bespoke "Chat" page type in component architecture.
+   513→   513→
+   514→   514→---
+   515→   515→
+   516→   516→## 7. User Flows
+   517→   517→
+   518→   518→### 7.1 New User Accepts Invitation → Onboarding → First Chat
+   519→   519→
+   520→   520→1. User receives email invitation with a link containing a signed token.
+   521→   521→2. User clicks the link and is directed to `/register`.
+   522→   522→3. The registration page validates the invitation token (checks expiration, organization, and email match).
+   523→   523→4. User fills in display name, password (with policy enforcement: min 8 chars, uppercase, lowercase, number, special char), and password confirmation.
+   524→   524→5. Account is created with the role specified in the invitation (default: Member). User is assigned to the invitation's workspace.
+   525→   525→6. User is automatically authenticated (dual-token JWT issued) and redirected to `/chat`.
+   526→   526→7. On first visit, a brief onboarding overlay highlights: workspace sidebar, agent selector, command palette (⌘K), and settings.
+   527→   527→8. User dismisses onboarding. The default agent (General Assistant) is pre-selected in the chat input area.
+   528→   528→9. User types their first message and receives a streaming AI response.
+   529→   529→10. Chat session is created with a system-generated title. It appears in the chat history sidebar.
+   530→   530→
+   531→   531→### 7.2 Admin Creates Agent → Configures → Tests → Deploys
+   532→   532→
+   533→   533→1. Admin navigates to `/admin/agents` via the sidebar.
+   534→   534→2. Admin clicks "ایجاد عامل" (Create Agent) button.
+   535→   535→3. Agent creation wizard opens (slide-over panel or full page):
+   536→   536→   - **Step 1 — Identity**: Name, description, avatar, agent type (Chat / RAG / Tool-use / Autonomous).
+   537→   537→   - **Step 2 — Model**: Select primary model and fallback chain from configured models.
+   538→   538→   - **Step 3 — Prompt**: Write system prompt in the editor with variable placeholders.
+   539→   539→   - **Step 4 — Knowledge**: Bind one or more knowledge bases (for RAG agents). Configure retrieval parameters.
+   540→   540→   - **Step 5 — Memory**: Bind memory packs for persistent context injection.
+   541→   541→   - **Step 6 — Tools**: Assign tools (search, code execution, API calls) with permission levels.
+   542→   542→   - **Step 7 — Limits**: Configure rate limits per user and per workspace.
+   543→   543→4. Admin clicks "ذخیره پیش‌نویس" (Save Draft). Agent is created with `status: draft`.
+   544→   544→5. Admin opens the agent detail page (`/admin/agents/[agentId]`) and navigates to the Test Console tab.
+   545→   545→6. Admin types test messages and observes responses, checking knowledge retrieval quality and tool execution.
+   546→   546→7. Admin iterates on the system prompt, knowledge bindings, or tool configuration as needed.
+   547→   547→8. Satisfied with the test results, admin clicks "انتشار" (Deploy). Agent status changes to `active`.
+   548→   548→9. The agent now appears in the workspace agent gallery (`/agents`) for all users in the scoped workspaces.
+   549→   549→10. An audit log entry is generated recording the deployment action.
+   550→   550→
+   551→   551→### 7.3 User Uploads Documents to Knowledge Base → Processing → Test Search
+   552→   552→
+   553→   553→1. User navigates to `/knowledge` (workspace sidebar → Knowledge).
+   554→   554→2. User opens an existing knowledge base or clicks "ایجاد پایگاه دانش" (Create Knowledge Base) to create a new one.
+   555→   555→3. On the knowledge base detail page (`/knowledge/[kbId]`), user is on the Documents tab.
+   556→   556→4. User clicks the upload area or drags files (PDF, DOCX, TXT, MD, HTML, CSV, JSON are supported).
+   557→   557→5. A progress bar appears for each file. Status events are streamed via SSE: `uploaded → extracting → chunking → embedding → indexed → ready`.
+   558→   558→6. User can see processing status in real time. Failed documents show an error icon with retry option.
+   559→   559→7. Once all documents reach `ready` status, user navigates to the Search Test tab.
+   560→   560→8. User types a natural language query (e.g., "سیاست مرجوعی کالا چیست؟").
+   561→   561→9. The system performs hybrid search (vector similarity + BM25) and returns ranked chunks with relevance scores and source document attribution.
+   562→   562→10. User evaluates retrieval quality. If unsatisfied, user adjusts retrieval parameters (top-K, similarity threshold, hybrid weight) and re-tests.
+   563→   563→11. User binds the knowledge base to one or more agents for RAG-enhanced conversations.
+   564→   564→
+   565→   565→### 7.4 Admin Manages Billing → Views Invoices → Updates Plan
+   566→   566→
+   567→   567→1. Admin navigates to `/admin/billing` via the sidebar (Operations → Billing).
+   568→   568→2. The billing page displays:
+   569→   569→   - **Current Plan card**: Plan name (Free / Pro / Enterprise), renewal date, usage vs. limits.
+   570→   570→   - **Usage Summary**: Token consumption this cycle, storage used, active users vs. limit.
+   571→   571→   - **Invoice History**: Table of past invoices with date, amount, status (paid / pending / overdue), and download action.
+   572→   572→3. Admin clicks on a specific invoice to view details: line items (token usage by model, storage overages), discounts, tax, total.
+   573→   573→4. Admin downloads the invoice PDF.
+   574→   574→5. To change plan, admin clicks "تغییر پلن" (Change Plan) button.
+   575→   575→6. A plan comparison modal shows Free, Pro, and Enterprise tiers with feature matrix:
+   576→   576→   - Users limit, workspaces limit, agents limit, token budget, storage, priority support.
+   577→   577→7. Admin selects the desired plan and confirms.
+   578→   578→8. If upgrading: immediate effect, prorated charge applied to next invoice.
+   579→   579→9. If downgrading: scheduled for end of current billing cycle. A confirmation dialog warns about resource limits that will be exceeded.
+   580→   580→10. An audit log entry is generated. A confirmation notification is sent to the org admin's email.
+   581→   581→
+   582→   582→---
+   583→   583→
+   584→   584→## 8. Search Architecture
+   585→   585→
+   586→   586→Search in HotHoosh operates at three distinct levels, each serving a different user intent and covering a different scope of content.
+   587→   587→
+   588→   588→### 8.1 Command Palette (Global Search)
+   589→   589→
+   590→   590→The command palette is the primary search and quick-action interface, accessible via **⌘K** (macOS) or **Ctrl+K** (Windows/Linux) from any page in either the workspace or the admin panel.
+   591→   591→
+   592→   592→**Trigger**: Keyboard shortcut only. No visible search bar in the default UI (the top bar search icon also triggers it).
+   593→   593→
+   594→   594→**Behavior**:
+   595→   595→
+   596→   596→```
+   597→   597→┌──────────────────────────────────────────────────┐
+   598→   598→│  ⌘K  جستجو یا اقدام سریع...                      │
+   599→   599→├──────────────────────────────────────────────────┤
+   600→   600→│  اخیر                                                 │
+   601→   601→│  ├─ عامل پشتیبانی مشتری                 Agent  │
+   602→   602→│  └─ پایگاه دانش محصولات                  KB     │
+   603→   603→├──────────────────────────────────────────────────┤
+   604→   604→│  نتایج                                               │
+   605→   605→│  ├─ مکالمات (Conversations)                          │
+   606→   606→│  │   └─ «نحوه تنظیم عامل هوشمند...»           │
+   607→   607→│  ├─ عوامل (Agents)                                  │
+   608→   608→│  │   └─ دستیار عمومی (General Assistant)              │
+   609→   609→│  ├─ پایگاه‌های دانش (Knowledge Bases)               │
+   610→   610→│  │   └─ مستندات محصول (Product Docs)                 │
+   611→   611→│  ├─ بسته‌های حافظه (Memory Packs)                   │
+   612→   612→│  │   └─ زمینه تیم (Team Context)                      │
+   613→   613→│  └─ اقدامات (Actions)                               │
+   614→   614→│      ├─ ایجاد مکالمه جدید                            │
+   615→   615→│      ├─ ایجاد عامل هوشمند                            │
+   616→   616→│      └─ رفتن به تنظیمات                              │
+   617→   617→├──────────────────────────────────────────────────┤
+   618→   618→│  Navigate with ↑↓  •  Select with Enter            │
+   619→   619→└──────────────────────────────────────────────────┘
+   620→   620→```
+   621→   621→
+   622→   622→**Search scope in workspace context**:
+   623→   623→
+   624→   624→| Entity | Search Fields | Result Action |
+   625→   625→|--------|--------------|---------------|
+   626→   626→| Chat Sessions | Title, recent message content (first N tokens) | Navigate to `/chat/{chatId}` |
+   627→   627→| Agents | Name, description | Navigate to `/agents/{agentId}` |
+   628→   628→| Knowledge Bases | Name, description | Navigate to `/knowledge/{kbId}` |
+   629→   629→| Memory Packs | Name, description, content excerpt | Navigate to `/memory` (with pack expanded) |
+   630→   630→| Quick Actions | Action name (Persian + English keywords) | Execute action (create, navigate) |
+   631→   631→
+   632→   632→**Search scope in admin context**:
+   633→   633→
+   634→   634→| Entity | Search Fields | Result Action |
+   635→   635→|--------|--------------|---------------|
+   636→   636→| Users | Display name, email | Navigate to `/admin/users/{userId}` |
+   637→   637→| Organizations | Name | Navigate to `/admin/organizations/{orgId}` |
+   638→   638→| Companies | Name | Navigate to `/admin/companies/{companyId}` |
+   639→   639→| Brands | Name | Navigate to `/admin/brands/{brandId}` |
+   640→   640→| Agents | Name | Navigate to `/admin/agents/{agentId}` |
+   641→   641→| Knowledge Bases | Name | Navigate to `/admin/knowledge/{kbId}` |
+   642→   642→| API Providers | Name | Navigate to `/admin/api-providers/{providerId}` |
+   643→   643→| Models | Name, provider name | Navigate to `/admin/models/{modelId}` |
+   644→   644→| Admin Pages | Page title (Persian + English) | Navigate to page route |
+   645→   645→
+   646→   646→**Implementation notes**:
+   647→   647→
+   648→   648→- Search is client-side index-based for small datasets (< 10K entities) using Fuse.js with Persian-aware tokenization.
+   649→   649→- For larger datasets, search delegates to a server-side endpoint that queries the database with `ILIKE` and `tsvector` (Persian text search configuration).
+   650→   650→- Results are grouped by entity type. Each group is collapsible.
+   651→   651→- Recent searches are stored per-user in `localStorage` (max 10 entries).
+   652→   652→- The command palette supports fuzzy matching and transliteration (e.g., typing "agent" matches "عامل").
+   653→   653→- Keyboard navigation: ↑↓ to move, Enter to select, Escape to close, Tab to switch between result groups.
+   654→   654→
+   655→   655→### 8.2 Knowledge Base Search (RAG)
+   656→   656→
+   657→   657→Knowledge base search is the retrieval layer that powers RAG-enhanced agent responses. It is not a user-facing search UI in the same sense as the command palette, but it is exposed through the Search Test tab on knowledge base detail pages.
+   658→   658→
+   659→   659→**Architecture** (high-level — detailed specification is in the Agent System Architecture document):
+   660→   660→
+   661→   661→```
+   662→   662→User Query
+   663→   663→    │
+   664→   664→    ▼
+   665→   665→Query Preprocessing (Persian normalization, stemming)
+   666→   666→    │
+   667→   667→    ├──► Vector Search (pgvector HNSW, cosine similarity)
+   668→   668→    │       └── Top-K candidate chunks
+   669→   669→    │
+   670→   670→    ├──► BM25 Full-Text Search (PostgreSQL tsvector)
+   671→   671→    │       └── Top-K candidate chunks
+   672→   672→    │
+   673→   673→    ▼
+   674→   674→Reciprocal Rank Fusion (RRF)
+   675→   675→    │
+   676→   676→    ▼
+   677→   677→Re-ranking (optional, by relevance score)
+   678→   678→    │
+   679→   679→    ▼
+   680→   680→Context Injection (into agent's prompt window)
+   681→   681→```
+   682→   682→
+   683→   683→**Configurable parameters** (per knowledge base or per agent binding):
+   684→   684→
+   685→   685→| Parameter | Default | Description |
+   686→   686→|-----------|---------|-------------|
+   687→   687→| `topK` | 5 | Number of chunks to retrieve from each search method |
+   688→   688→| `similarityThreshold` | 0.7 | Minimum cosine similarity score to include a vector result |
+   689→   689→| `hybridWeight` | 0.5 | Balance between vector (1.0) and BM25 (0.0) results in RRF fusion |
+   690→   690→| `chunkOverlap` | 20% | Overlap between adjacent chunks during document processing |
+   691→   691→| `chunkSize` | 512 tokens | Target chunk size during document processing |
+   692→   692→
+   693→   693→### 8.3 Admin List Filtering
+   694→   694→
+   695→   695→Every admin list page supports structured filtering via a filter bar (documented in Admin-Panel.md §9.4.2 for Users, and applied consistently across all admin list pages). This is not a free-text search but a structured, field-specific filtering system.
+   696→   696→
+   697→   697→**Filter characteristics**:
+   698→   698→
+   699→   699→| Aspect | Implementation |
+   700→   700→|--------|---------------|
+   701→   701→| **Filter persistence** | URL search parameters. Filters survive page reload and are shareable via URL. |
+   702→   702→| **Debounced text search** | 300ms debounce on text input fields. Searches across configured fields per entity. |
+   703→   703→| **Multi-select filters** | Combobox components for status, role, type, and other categorical fields. |
+   704→   704→| **Date range filters** | Solar Hijri date pickers. Uses Day.js + jalaali-js. |
+   705→   705→| **Tenant scope interaction** | Filters operate within the current tenant scope. Changing the Tenant Scope Selector resets filters. |
+   706→   706→| **Clear all** | A single "پاک کردن فیلترها" (Clear Filters) button resets all filters to defaults. |
+   707→   707→| **Shallow navigation** | Filter changes use `useRouter().replace()` with `shallow: true` — no full-page reload, no scroll reset. |
+   708→   708→
+   709→   709→---
+   710→   710→
+   711→   711→## Appendix: Document Cross-References
+   712→   712→
+   713→   713→| This Document | References | Referenced By |
+   714→   714→|--------------|------------|---------------|
+   715→   715→| §2 Site Map | PRD §4 (Functional Requirements), Architecture §3.3 (Routing) | UX Design (wireframes), Engineering Rules (route guards) |
+   716→   716→| §3 Navigation Model | Admin-Panel §9.2 (Admin Layout), Architecture §3.2 (State Management) | Frontend implementation, Design System (nav components) |
+   717→   717→| §4 Content Hierarchy | PRD §4.2 (Multi-Tenant), PRD §4.3–4.6 (Entities) | Database Design (ERD), Backend Architecture (domain modules) |
+   718→   718→| §5 URL Structure | Architecture §3.3 (Routing Architecture) | Backend API Design (route mapping), Frontend (Next.js app router) |
+   719→   719→| §6 Page Types | Admin-Panel §9.3–9.17 (Page Specs), PRD §4.10 (UX) | Design System (page templates), Frontend (page components) |
+   720→   720→| §7 User Flows | PRD §4 (All FRs), Architecture §6 (Data Flows) | UX Design (flow diagrams), QA (test scenarios) |
+   721→   721→| §8 Search Architecture | PRD §4.5 (RAG), PRD §4.7 (Multi-Provider), Admin-Panel §9.4.2 (Filters) | Agent System Architecture (RAG pipeline), Frontend (command palette) |
+   722→   722→

@@ -1,0 +1,502 @@
+     1→     1→# Frontend Architecture
+     2→     2→
+     3→     3→## HotHoosh — Enterprise AI Workspace
+     4→     4→
+     5→     5→---
+     6→     6→
+     7→     7→## Table of Contents
+     8→     8→
+     9→     9→1. [Overview](#1-overview)
+    10→    10→2. [Technology Stack](#2-technology-stack)
+    11→    11→3. [Monorepo Integration](#3-monorepo-integration)
+    12→    12→4. [App Router Architecture](#4-app-router-architecture)
+    13→    13→5. [Component Architecture](#5-component-architecture)
+    14→    14→6. [State Management](#6-state-management)
+    15→    15→7. [RTL Integration](#7-rtl-integration)
+    16→    16→8. [Theme System](#8-theme-system)
+    17→    17→9. [Data Fetching Patterns](#9-data-fetching-patterns)
+    18→    18→10. [Error Handling](#10-error-handling)
+    19→    19→11. [Performance Strategy](#11-performance-strategy)
+    20→    20→12. [Accessibility Strategy](#12-accessibility-strategy)
+    21→    21→13. [Internationalization](#13-internationalization)
+    22→    22→
+    23→    23→---
+    24→    24→
+    25→    25→## 1. Overview
+    26→    26→
+    27→    27→HotHoosh's frontend is a Persian-first, RTL-native enterprise workspace built on Next.js 15 with the App Router. It is delivered as two distinct Next.js applications within a Turborepo + pnpm monorepo: **apps/web** serves the user-facing AI workspace (chat, agents, knowledge, memory), and **apps/admin** serves the management console (dashboard, tenant management, billing, audit logs). Both applications share a common component library (`packages/ui`) and a shared types-and-validators package (`packages/shared`), ensuring visual consistency and validation parity between client and server.
+    28→    28→
+    29→    29→The architectural philosophy rests on four pillars:
+    30→    30→
+    31→    31→| Pillar | Description |
+    32→    32→|--------|-------------|
+    33→    33→| **React Server Components by default** | Every component is a Server Component until it explicitly requires interactivity. The `'use client'` directive is placed at the feature component level, not on every interactive leaf. This minimizes client-side JavaScript and improves Core Web Vitals. |
+    34→    34→| **Strict state boundary separation** | Four non-overlapping state management tools each own exactly one category of state: TanStack Query for server data, Zustand for client UI state, React Hook Form for form state, and URL search params for navigation state. Crossing boundaries is a violation of Engineering Rules §10.4.1. |
+    35→    35→| **Feature-based organization** | Code is grouped by domain concept (`features/chat/`, `features/agents/`), not by technical type. Each feature is self-contained and deletable without side effects on other features. |
+    36→    36→| **RTL-first design system** | The entire interface is built with CSS logical properties so that switching between RTL (Persian) and LTR (English) requires only changing the `dir` attribute on the root `<html>` element. No physical direction properties are used anywhere. |
+    37→    37→
+    38→    38→This document specifies the complete frontend architecture: technology choices, monorepo structure, routing design, component hierarchy, state management, RTL strategy, theming, data fetching, error handling, performance optimization, accessibility compliance, and internationalization.
+    39→    39→
+    40→    40→---
+    41→    41→
+    42→    42→## 2. Technology Stack
+    43→    43→
+    44→    44→Every library in the HotHoosh frontend was selected for a specific architectural reason. The table below lists every dependency, its version constraint, its role in the system, and the rationale for its selection.
+    45→    45→
+    46→    46→### 2.1 Core Framework
+    47→    47→
+    48→    48→| Library | Version | Purpose | Rationale |
+    49→    49→|---------|---------|---------|-----------|
+    50→    50→| **Next.js** (App Router) | 15+ | Application framework: SSR, routing, code splitting, image optimization, font loading | App Router provides React Server Components, reducing client-side JavaScript. Route-based code splitting is automatic. `next/image` and `next/font` provide optimization out of the box. |
+    51→    51→| **React** | 19.x | UI rendering library with Server Components and Client Components support | React 19 introduces improved Server Component serialization, `use` hook for promises, and better concurrent rendering. |
+    52→    52→| **TypeScript** | 5.x | Static type checking with strict mode | Strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and `noImplicitOverride` catches entire categories of bugs at compile time. Branded types prevent ID misuse. |
+    53→    53→
+    54→    54→### 2.2 Styling and Design System
+    55→    55→
+    56→    56→| Library | Version | Purpose | Rationale |
+    57→    57→|---------|---------|---------|-----------|
+    58→    58→| **Tailwind CSS** | 4.x | Utility-first CSS framework with RTL logical property support | Tailwind 4 uses CSS-first configuration. Logical properties (`ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `inline-*`, `block-*`) make RTL/LTR switching automatic. |
+    59→    59→| **shadcn/ui** | latest | Accessible, composable component primitives built on Radix UI | shadcn/ui components are copied into the project (not installed as a dependency), giving full control over code. Built on Radix UI primitives which provide robust ARIA support and keyboard navigation. |
+    60→    60→| **@phosphor-icons/react** | latest | Icon library with RTL mirror support | Phosphor Icons provides a consistent, lightweight icon set with automatic RTL mirroring for directional icons. Used throughout both workspace and admin interfaces. |
+    61→    61→| **Vazirmatn** (self-hosted) | latest | Persian/Arabic typeface optimized for screen readability | Loaded via `next/font/local` from `public/fonts/`. `font-display: swap` prevents layout shift. The same font serves both Persian and Latin characters, maintaining visual consistency. |
+    62→    62→| **clsx** + **tailwind-merge** | latest | Conditional class name composition via the `cn()` utility | `clsx` handles conditional class concatenation. `tailwind-merge` resolves Tailwind class conflicts (e.g., `p-2 p-4` → `p-4`). Combined into a single `cn()` function used across all components. |
+    63→    63→
+    64→    64→### 2.3 State Management
+    65→    65→
+    66→    66→| Library | Version | Purpose | Rationale |
+    67→    67→|---------|---------|---------|-----------|
+    68→    68→| **Zustand** | 5.x | Lightweight client-side state management for UI-only state | ~1 KB bundle, zero boilerplate, hooks-based API. Manages only UI state (theme, sidebar, selection). All server state lives in TanStack Query. Actions are synchronous; async work is delegated to TanStack Query mutations. |
+    69→    69→| **TanStack Query** (React Query) | 5.x | Server state management: caching, background refetching, optimistic updates, infinite queries | Provides structured caching with `staleTime` and `gcTime`, automatic background refetching, deduplication of identical requests, and optimistic update patterns. Query key factories ensure structured, predictable cache keys. |
+    70→    70→| **React Hook Form** | 7.x | Performant form state management with minimal re-renders | Uncontrolled form inputs mean the component only re-renders on submit, not on every keystroke. Integrated with Zod via `zodResolver` for shared validation schemas. |
+    71→    71→| **Zod** | 3.x | Schema-based validation shared between frontend and backend | Schemas defined in `packages/shared` run on both client and server, guaranteeing identical validation rules. Provides TypeScript inference via `z.infer<typeof schema>`. Supports `.pick()`, `.omit()`, `.partial()`, `.merge()` for schema composition. |
+    72→    72→
+    73→    73→### 2.4 Data Visualization
+    74→    74→
+    75→    75→| Library | Version | Purpose | Rationale |
+    76→    76→|---------|---------|---------|-----------|
+    77→    77→| **ECharts** | 5.x | Charts and data visualizations (area charts, donut charts, bar charts) | Used in the admin dashboard for token consumption trends, model distribution donut charts, and usage analytics. Lazy-loaded via `next/dynamic` to keep it out of the critical path. Supports RTL axis layout for Persian labels. |
+    78→    78→
+    79→    79→### 2.5 Date, Calendar, and Formatting
+    80→    80→
+    81→    81→| Library | Version | Purpose | Rationale |
+    82→    82→|---------|---------|---------|-----------|
+    83→    83→| **dayjs** | latest | Date manipulation and formatting | Lightweight (2 KB) date library with a chainable API identical to Moment.js. Plugin architecture extends functionality without bloat. |
+    84→    84→| **jalaali-js** | latest | Solar Hijri (Jalali/Persian) calendar conversion | Integrates with dayjs as a plugin (`dayjs.extend(jalaali)`). Provides `dayjs().calendar('jalaali')` for conversion, `.format('jYYYY/jMM/jDD')` for formatting. This is the default calendar system for all Persian users. |
+    85→    85→
+    86→    86→### 2.6 HTTP and Real-Time Communication
+    87→    87→
+    88→    88→| Library | Version | Purpose | Rationale |
+    89→    89→|---------|---------|---------|-----------|
+    90→    90→| **Fetch API** (native) | — | HTTP requests for TanStack Query | Native `fetch` is used as the HTTP client within TanStack Query's `queryFn`. Avoids adding Axios to the bundle. Auth interceptors are handled via a thin wrapper function. |
+    91→    91→| **EventSource** (native) | — | Server-Sent Events for AI response streaming | The browser-native `EventSource` API receives SSE streams (`text/event-stream`) for real-time AI token delivery. Simpler than WebSocket for unidirectional server-to-client streaming. Auto-reconnects on disconnection. |
+    92→    92→
+    93→    93→### 2.7 Developer Experience
+    94→    94→
+    95→    95→| Library | Version | Purpose | Rationale |
+    96→    96→|---------|---------|---------|-----------|
+    97→    97→| **Turborepo** | 2.x | Monorepo task orchestration with remote caching | Caches build, lint, type-check, and test results by file hash. `topo` dependency order ensures `packages/shared` builds before `apps/web`. Parallel execution across independent packages. |
+    98→    98→| **pnpm** | 9.x | Strict, content-addressable package manager | Prevents phantom dependencies by restricting imports to declared dependencies. Workspace protocol (`workspace:*`) references local packages. |
+    99→    99→| **ESLint** | latest | Linting with shared configuration | `packages/eslint-config` provides consistent rules across all apps and packages. Includes React, TypeScript, Next.js, and Tailwind plugin configurations. |
+   100→   100→| **Prettier** | latest | Code formatting | Enforced via ESLint integration and pre-commit hooks. Zero formatting debates. |
+   101→   101→| **Vitest** | latest | Unit and component testing | Fast, ESM-native test runner compatible with Vite and the React Testing Library ecosystem. |
+   102→   102→| **React Testing Library** | latest | Component testing with accessibility-first queries | Encourages testing user behavior rather than implementation details. Queries like `getByRole('button')` enforce semantic HTML and accessibility. |
+   103→   103→| **Playwright** | latest | End-to-end testing | Cross-browser E2E tests for critical user flows (login, chat, agent creation). |
+   104→   104→
+   105→   105→---
+   106→   106→
+   107→   107→## 3. Monorepo Integration
+   108→   108→
+   109→   109→HotHoosh is a Turborepo + pnpm monorepo. The frontend consists of two Next.js 15 applications (`apps/web` and `apps/admin`) that consume two shared packages (`packages/ui` and `packages/shared`). This structure enables code reuse without coupling the two applications to each other.
+   110→   110→
+   111→   111→### 3.1 Package Dependency Graph
+   112→   112→
+   113→   113→```
+   114→   114→apps/web  ──→  packages/ui  ──→  (no internal deps)
+   115→   115→   │               │
+   116→   116→   │               └──→  packages/shared  ──→  zod, dayjs, jalaali-js
+   117→   117→   └──→  packages/shared
+   118→   118→
+   119→   119→apps/admin  ──→  packages/ui
+   120→   120→   │               │
+   121→   121→   │               └──→  packages/shared
+   122→   122→   └──→  packages/shared
+   123→   123→
+   124→   124→packages/eslint-config  (standalone, no internal deps)
+   125→   125→``
+   126→   126→
+   127→   127→Turborepo's `topo` dependency order guarantees that `packages/shared` is built and type-checked before `packages/ui`, which is built before `apps/web` and `apps/admin`. Changes to `packages/shared` trigger rebuilds of all downstream consumers.
+   128→   128→
+   129→   129→### 3.2 What is Shared via `packages/shared`
+   130→   130→
+   131→   131→`packages/shared` contains code that must be **identical** between frontend and backend. It has zero dependencies on React, Next.js, or NestJS.
+   132→   132→
+   133→   133→| Category | Contents | Consumed By |
+   134→   134→|----------|----------|-------------|
+   135→   135→| **Branded types** | `UserId`, `AgentId`, `ChatSessionId`, `KnowledgeBaseId`, `MemoryPackId` — branded string types that prevent accidental ID misuse at compile time | apps/web, apps/admin, apps/api |
+   136→   136→| **Domain types** | `User`, `Agent`, `ChatSession`, `ChatMessage`, `KnowledgeBase`, `MemoryPack`, `Organization`, `Invoice` — full entity type definitions | apps/web, apps/admin, apps/api |
+   137→   137→| **API types** | Request/response envelope types (`ApiResponse<T>`, `PaginatedResponse<T>`, `ApiError`), HATEOAS link types | apps/web, apps/admin |
+   138→   138→| **Domain event types** | `UserCreatedEvent`, `AgentDeployedEvent`, `KnowledgeUploadedEvent` — event payload type definitions | apps/api (primarily) |
+   139→   139→| **Zod validators** | `loginSchema`, `createAgentSchema`, `sendMessageSchema`, `uploadDocumentSchema`, `paginationSchema` — shared validation schemas that run on both client and server | apps/web (forms), apps/admin (forms), apps/api (validation pipe) |
+   140→   140→| **Constants** | `AgentStatus`, `DocumentProcessingStatus`, `MAX_FILE_SIZE`, `TOKEN_BUDGET_PERCENTAGES`, API route path strings | All packages and apps |
+   141→   141→| **Pure utilities** | `formatPersianDate()`, `toJalaali()`, `truncate()`, `slugify()`, `normalizePersian()`, `formatPersianNumeral()`, `formatCurrency()` | apps/web, apps/admin |
+   142→   142→
+   143→   143→### 3.3 What is Shared via `packages/ui`
+   144→   144→
+   145→   145→`packages/ui` is a React component library built on shadcn/ui primitives. It provides reusable, accessible components used by both applications.
+   146→   146→
+   147→   147→| Category | Contents | Examples |
+   148→   148→|----------|----------|----------|
+   149→   149→| **Form primitives** | Button, Input, Textarea, Select, Checkbox, Radio Group, Switch, Label | Used in all forms across web and admin |
+   150→   150→| **Overlay primitives** | Dialog, Dropdown Menu, Popover, Tooltip, Sheet (slide-over), Command (for command palette) | Used for modals, menus, and contextual actions |
+   151→   151→| **Data display** | Data Table (sorting, filtering, pagination), Badge, Skeleton, Card, Avatar, Separator | Data Table is the primary admin list component |
+   152→   152→| **Feedback** | Toast (sonner integration), Alert, Progress, Spinner | Toast for notifications, Progress for upload tracking |
+   153→   153→| **Navigation** | Breadcrumb, Tabs, Pagination | Breadcrumb auto-generated from route tree in admin |
+   154→   154→| **Shared hooks** | `useMediaQuery`, `useDebounce`, `useCopyToClipboard` | General-purpose UI behavior |
+   155→   155→| **Utility functions** | `cn()` (clsx + tailwind-merge) | Used in every component for class composition |
+   156→   156→
+   157→   157→### 3.4 What is NOT Shared
+   158→   158→
+   159→   159→| Not Shared | Reason |
+   160→   160→|------------|--------|
+   161→   161→| **Zustand stores** | Each app has its own client state concerns. Web manages sidebar/chat state; admin manages tenant scope/selection state. |
+   162→   162→| **API client code** | Each app has its own fetch wrapper with different base URLs, auth header injection, and error handling preferences. |
+   163→   163→| **Feature modules** | Features are app-specific. `features/chat/` exists only in `apps/web`; `features/admin-users/` exists only in `apps/admin`. |
+   164→   164→| **App-level layouts** | The workspace shell and admin shell have fundamentally different structures and navigation models. |
+   165→   165→| **Route definitions** | Each app owns its own `app/` directory with its own route tree. |
+   166→   166→| **State management** | TanStack Query instances are configured independently per app with different `QueryClient` defaults. |
+   167→   167→
+   168→   168→---
+   169→   169→
+   170→   170→## 4. App Router Architecture
+   171→   171→
+   172→   172→Both `apps/web` and `apps/admin` use the Next.js App Router exclusively (`app/` directory). The Pages Router (`pages/` directory) does not exist. This is a non-negotiable constraint per Engineering Rules §10.4.1.
+   173→   173→
+   174→   174→### 4.1 Route Groups and Layouts
+   175→   175→
+   176→   176→Route groups (parenthesized directories) allow applying different layouts to different sections of the app without affecting the URL structure.
+   177→   177→
+   178→   178→| Route Group | Purpose | Layout | Auth Requirement |
+   179→   179→|-------------|---------|--------|-----------------|
+   180→   180→| `(auth)` | Login, register, forgot-password | Centered, minimal layout — no sidebar, no top bar | Unauthenticated — redirects to `/chat` if already logged in |
+   181→   181→| `(workspace)` | Chat, agents, knowledge, memory, settings | Full workspace shell — sidebar, top bar, workspace switcher | Authenticated — redirects to `/login` if not logged in |
+   182→   182→| Root `/` | Landing redirect | Root layout (providers, fonts, `dir="rtl"`) | Redirects to `/chat` or `/login` based on auth status |
+   183→   183→
+   184→   184→The root `layout.tsx` renders the HTML shell with the Vazirmatn font loaded via `next/font/local`, the `dir="rtl"` attribute on `<html>`, and global providers (TanStack Query `QueryClientProvider`, theme provider, toast provider). It contains no sidebar or navigation — those belong to the `(workspace)` layout.
+   185→   185→
+   186→   186→### 4.2 Workspace Route Tree
+   187→   187→
+   188→   188→The complete route tree for `apps/web` (the user-facing workspace):
+   189→   189→
+   190→   190→```
+   191→   191→apps/web/src/app/
+   192→   192→├── layout.tsx                          # Root: providers, Vazirmatn font, dir="rtl"
+   193→   193→├── page.tsx                            # Redirect → /chat
+   194→   194→├── globals.css                         # Design tokens + Tailwind base
+   195→   195→├── not-found.tsx                       # Custom 404 page
+   196→   196→├── error.tsx                           # Global error boundary
+   197→   197→├── loading.tsx                         # Global loading skeleton
+   198→   198→│
+   199→   199→├── (auth)/                             # Unauthenticated route group
+   200→   200→│   ├── layout.tsx                      # Centered, minimal layout (no sidebar)
+   201→   201→│   ├── login/
+   202→   202→│   │   └── page.tsx                    # Email + password login with optional 2FA
+   203→   203→│   ├── register/
+   204→   204→│   │   └── page.tsx                    # Invitation-based account creation
+   205→   205→│   └── forgot-password/
+   206→   206→│       └── page.tsx                    # Email-based password reset
+   207→   207→│
+   208→   208→└── (workspace)/                        # Authenticated route group
+   209→   209→    ├── layout.tsx                      # Workspace shell: sidebar, top bar, workspace switcher
+   210→   210→    ├── loading.tsx                     # Workspace shell skeleton
+   211→   211→    ├── error.tsx                       # Workspace error boundary
+   212→   212→    │
+   213→   213→    ├── chat/
+   214→   214→    │   ├── layout.tsx                  # Chat sub-layout: conversation list panel + main area
+   215→   215→    │   ├── page.tsx                    # Chat session list (history + new chat action)
+   216→   216→    │   ├── loading.tsx                 # Chat list skeleton
+   217→   217→    │   ├── error.tsx                   # Chat error boundary
+   218→   218→    │   └── [chatId]/
+   219→   219→    │       ├── page.tsx                  # Active chat session (messages, input, context panel)
+   220→   220→    │       ├── loading.tsx             # Chat session skeleton (message bubble placeholders)
+   221→   221→    │       └── error.tsx               # Chat session error boundary
+   222→   222→    │
+   223→   223→    ├── agents/
+   224→   224→    │   ├── layout.tsx                  # Agents sub-layout (optional: detail panel)
+   225→   225→    │   ├── page.tsx                    # Agent gallery (grid/list of workspace agents)
+   226→   226→    │   ├── loading.tsx                 # Agent gallery skeleton (card placeholders)
+   227→   227→    │   ├── error.tsx                   # Agents error boundary
+   228→   228→    │   └── [agentId]/
+   229→   229→    │       ├── page.tsx                  # Agent detail: config, knowledge/memory bindings, test console
+   230→   230→    │       ├── loading.tsx             # Agent detail skeleton
+   231→   231→    │       └── error.tsx               # Agent detail error boundary
+   232→   232→    │
+   233→   233→    ├── knowledge/
+   234→   234→    │   ├── layout.tsx                  # Knowledge sub-layout
+   235→   235→    │   ├── page.tsx                    # Knowledge base list (status, doc count, upload action)
+   236→   236→    │   ├── loading.tsx                 # Knowledge list skeleton
+   237→   237→    │   ├── error.tsx                   # Knowledge error boundary
+   238→   238→    │   └── [kbId]/
+   239→   239→    │       ├── page.tsx                  # KB detail: documents, chunks, search test, settings
+   240→   240→    │       ├── loading.tsx             # KB detail skeleton
+   241→   241→    │       └── error.tsx               # KB detail error boundary
+   242→   242→    │
+   243→   243→    ├── memory/
+   244→   244→    │   ├── page.tsx                    # Memory pack list (type badge, version count, CRUD)
+   245→   245→    │   ├── loading.tsx                 # Memory list skeleton
+   246→   246→    │   └── error.tsx                   # Memory error boundary
+   247→   247→    │
+   248→   248→    └── settings/
+   249→   249→        ├── page.tsx                    # User settings (profile, theme, 2FA, language, calendar)
+   250→   250→        ├── loading.tsx                 # Settings skeleton
+   251→   251→        └── error.tsx                   # Settings error boundary
+   252→   252→```
+   253→   253→
+   254→   254→### 4.3 Loading States
+   255→   255→
+   256→   256→Per Engineering Rules §10.4.1, every route segment that fetches async data must have a `loading.tsx` that renders a skeleton matching the page layout. This provides instant visual feedback and prevents layout shift (CLS) when data arrives.
+   257→   257→
+   258→   258→| Route | Loading Strategy |
+   259→   259→|-------|-----------------|
+   260→   260→| `/chat` | Skeleton cards in the conversation list panel matching the height and width of real conversation items |
+   261→   261→| `/chat/[chatId]` | Skeleton message bubbles (3–5 placeholder rows) matching the chat layout, with a skeleton input bar at the bottom |
+   262→   262→| `/agents` | Skeleton agent cards in a grid layout matching the gallery's 3-column desktop layout |
+   263→   263→| `/knowledge` | Skeleton list items with status badge placeholders and document count placeholders |
+   264→   264→| `/memory` | Skeleton list items with type badge and version count placeholders |
+   265→   265→| `/settings` | Skeleton form fields matching the settings page layout |
+   266→   266→
+   267→   267→### 4.4 Error Boundaries
+   268→   268→
+   269→   269→Per Engineering Rules §10.4.1, every route segment has an `error.tsx` boundary. Error boundaries catch both Server Component errors and Client Component render errors. Each boundary provides a Persian-language error message, a retry button, and a link back to the parent route.
+   270→   270→
+   271→   271→| Boundary | Catches | User Sees |
+   272→   272→|----------|---------|----------|
+   273→   273→| Root `error.tsx` | Unhandled errors outside any route group | Full-page error with Persian message, retry button, link to `/chat` |
+   274→   274→| `(workspace)/error.tsx` | Errors in any workspace page | Error panel within the workspace shell (sidebar remains visible) |
+   275→   275→| `chat/error.tsx` | Errors loading the chat list | Error within the chat layout (conversation list panel shows error) |
+   276→   276→| `chat/[chatId]/error.tsx` | Errors loading a specific chat session | Error within the chat session layout (conversation list remains accessible) |
+   277→   277→| Feature-level | Errors in async operations within a feature | React error boundary wrapper with localized message and retry |
+   278→   278→
+   279→   279→---
+   280→   280→
+   281→   281→## 5. Component Architecture
+   282→   282→
+   283→   283→HotHoosh follows the Atomic Design methodology, organizing components into five hierarchical levels. Components are further organized by feature domain, ensuring that all code related to a business concept lives in one self-contained directory.
+   284→   284→
+   285→   285→### 5.1 Atomic Design Hierarchy
+   286→   286→
+   287→   287→| Level | Definition | Location | Examples |
+   288→   288→|-------|-----------|----------|----------|
+   289→   289→| **Atoms** | Smallest indivisible UI elements. Cannot be decomposed further. No business logic. | `packages/ui/src/components/` | Button, Input, Badge, Avatar, Skeleton, Spinner, Separator, Toggle |
+   290→   290→| **Molecules** | Combinations of 2–4 atoms that form a distinct UI unit. May contain simple props-based logic. | `packages/ui/src/components/` or `apps/web/src/features/*/components/` | Search Input (Input + Icon), Form Field (Label + Input + Error), Stat Card (Icon + Value + Label + Trend) |
+   291→   291→| **Organisms** | Complex, self-contained UI sections composed of molecules and atoms. May contain hooks and local state. | `apps/web/src/features/*/components/` | Chat Input (textarea + send button + attachment button + agent selector), Message Bubble (avatar + content + actions + timestamp), Data Table (header + rows + pagination + sort indicators), Agent Card (avatar + name + description + status badge + actions) |
+   292→   292→| **Templates** | Page-level layouts that define the structure and spatial relationship of organisms. No real data. | `apps/web/src/components/layouts/` | Workspace Shell (sidebar + top bar + main content area), Chat Layout (conversation list + message area + input bar), Agent Detail Layout (header + tab bar + content area) |
+   293→   293→| **Pages** | Route-level components that wire templates to real data. May be Server Components that fetch data via `async/await`. | `apps/web/src/app/**/page.tsx` | `/chat` page, `/chat/[chatId]` page, `/agents` page |
+   294→   294→
+   295→   295→### 5.2 Feature-Based Organization
+   296→   296→
+   297→   297→Each feature directory is a self-contained module. A feature must be deletable without affecting any other feature. The internal structure follows a consistent pattern:
+   298→   298→
+   299→   299→```
+   300→   300→src/features/{feature-name}/
+   301→   301→├── components/                    # Feature-specific components (organisms and molecules)
+   302→   302→│   ├── {component-name}/
+   303→   303→│   │   ├── index.tsx             # Component implementation
+   304→   304→│   │   ├── {component-name}.module.css  # BEM-named CSS module (only if Tailwind is insufficient)
+   305→   305→│   │   └── {component-name}.test.tsx    # Component tests
+   306→   306→│   └── ...
+   307→   307→├── hooks/                         # Feature-specific custom hooks
+   308→   308→│   ├── use{hook-name}.ts
+   309→   309→│   └── ...
+   310→   310→├── stores/                        # Feature-specific Zustand stores (if any)
+   311→   311→│   └── {feature}.store.ts
+   312→   312→├── services/                      # API call wrappers (fetch/axios)
+   313→   313→│   └── {feature}.service.ts
+   314→   314→├── types/                         # Feature-specific TypeScript types (if not in shared)
+   315→   315→│   └── {feature}.types.ts
+   316→   316→└── index.ts                       # Public API exports only
+   317→   317→```
+   318→   318→
+   319→   319→### 5.3 Component Composition Patterns
+   320→   320→
+   321→   321→| Pattern | Description | Example |
+   322→   322→|---------|-------------|---------|
+   323→   323→| **Server Component wrapper + Client Component child** | A Server Component page fetches data via `async/await` and passes it as props to a Client Component that handles interactivity. | Agent gallery page (Server) fetches agents, passes to `AgentGallery` (Client) for filtering/sorting. |
+   324→   324→| **Slot pattern (Radix AsChild)** | shadcn/ui components support the `asChild` prop, which merges props onto a child element instead of rendering a wrapper DOM node. This avoids unnecessary DOM nesting. | `<Button asChild><Link href="/agents">View Agents</Link></Button>` renders a single `<a>` element styled as a button. |
+   325→   325→| **Compound components** | Related components share implicit state via React Context, allowing flexible composition. | `<DataTable>` exposes `<DataTable.Header>`, `<DataTable.Body>`, `<DataTable.Row>`, `<DataTable.Cell>` with shared sort/filter/pagination state. |
+   326→   326→| **Render props for complex state** | When a component needs to expose complex internal state for customization, it uses a render prop function. | `<ChatInput renderActions={(isStreaming) => <StopButton visible={isStreaming} />}>` |
+   327→   327→| **Provider pattern for cross-cutting concerns** | Global or feature-wide state is provided via React Context at the layout level. | `QueryClientProvider`, `ThemeProvider`, `ToastProvider` at root layout. |
+   328→   328→
+   329→   329→---
+   330→   330→
+   331→   331→## 6. State Management
+   332→   332→
+   333→   333→HotHoosh enforces a strict separation of state management concerns. Each of the four state categories is owned by exactly one tool. Overlapping these boundaries is a violation of Engineering Rules §10.4.1 and §10.4.4.
+   334→   334→
+   335→   335→### 6.1 The Four State Boundaries
+   336→   336→
+   337→   337→| State Type | Tool | Scope | Examples | Key Constraint |
+   338→   338→|-----------|------|-------|----------|----------------|
+   339→   339→| **Server state** | TanStack Query | All data fetched from the API: users, agents, knowledge bases, chat sessions, usage stats, audit logs | `useQuery` for reads, `useMutation` for writes, `useInfiniteQuery` for large lists | Zustand stores never hold server data. If it came from the API, it belongs in TanStack Query. |
+   340→   340→| **Client state** | Zustand | UI-only state that lives entirely in the browser: theme, sidebar open/closed, command palette visibility, selection state, workspace ID | `useThemeStore`, `useSidebarStore`, `useCommandPaletteStore`, `useSelectionStore` | Store actions are synchronous. Async work (API calls) lives in TanStack Query mutations, which call Zustand actions on success. |
+   341→   341→| **Form state** | React Hook Form + Zod | Form input values, validation errors, submission status: login form, create agent form, upload document form, edit settings form | `useForm` with `zodResolver(createAgentSchema)` | Form state never leaks into Zustand or TanStack Query. On submit, form values are passed to a TanStack Query mutation. |
+   342→   342→| **URL state** | Next.js `useSearchParams` + `useRouter` | Navigation state: filters, pagination, active tab, search query, sort order | `?page=2&status=active&sort=created_at&order=desc`, `?tab=documents` | URL is the source of truth for filterable/sortable list views. Components read from and write to URL params. TanStack Query keys include URL params for cache coherence. |
+   343→   343→
+   344→   344→### 6.2 Zustand Store Inventory (Workspace)
+   345→   345→
+   346→   346→Each store manages one domain of client state. No god stores.
+   347→   347→
+   348→   348→| Store | State Fields | Actions | Persistence |
+   349→   349→|-------|-------------|---------|------------|
+   350→   350→| `useThemeStore` | `theme: 'light' | 'dark' | 'system'` | `setTheme(theme)`, `toggleTheme()` | Yes — `localStorage` via `zustand/middleware/persist` |
+   351→   351→| `useSidebarStore` | `isOpen: boolean`, `isCollapsed: boolean` | `toggleSidebar()`, `setCollapsed(collapsed)` | Yes — `localStorage` |
+   352→   352→| `useCommandPaletteStore` | `isOpen: boolean` | `open()`, `close()`, `toggle()` | No — resets on page navigation |
+   353→   353→| `useWorkspaceStore` | `activeWorkspaceId: WorkspaceId` | `setWorkspace(id)` | Yes — `localStorage` (remembers last workspace) |
+   354→   354→| `useChatUIStore` | `isStreaming: boolean`, `inputHeight: number` | `setStreaming(v)`, `setInputHeight(h)` | No — resets per chat session |
+   355→   355→| `useSelectionStore` | `selectedIds: Set<string>` | `select(id)`, `deselect(id)`, `clearSelection()`, `selectAll(ids)` | No — resets per page |
+   356→   356→
+   357→   357→All stores are consumed via selectors to prevent unnecessary re-renders: `useThemeStore(s => s.theme)`, not `useThemeStore()`. Stores are defined in `src/stores/` for app-level stores and `src/features/*/stores/` for feature-specific stores.
+   358→   358→
+   359→   359→### 6.3 TanStack Query Key Factory (Workspace)
+   360→   360→
+   361→   361→Query keys follow a structured factory pattern. Every key is a tuple that encodes the entity type, operation, and identifiers.
+   362→   362→
+   363→   363→```typescript
+   364→   364→// src/lib/query-keys.ts
+   365→   365→
+   366→   366→export const chatKeys = {
+   367→   367→  all:        ['chat'] as const,
+   368→   368→  lists:      () => [...chatKeys.all, 'list'] as const,
+   369→   369→  list:       (filters: ChatFilters) => [...chatKeys.lists(), filters] as const,
+   370→   370→  details:    () => [...chatKeys.all, 'detail'] as const,
+   371→   371→  detail:     (id: ChatSessionId) => [...chatKeys.details(), id] as const,
+   372→   372→  messages:   (id: ChatSessionId) => [...chatKeys.detail(id), 'messages'] as const,
+   373→   373→};
+   374→   374→
+   375→   375→export const agentKeys = {
+   376→   376→  all:        ['agent'] as const,
+   377→   377→  lists:      () => [...agentKeys.all, 'list'] as const,
+   378→   378→  list:       (filters?: AgentFilters) => [...agentKeys.lists(), filters] as const,
+   379→   379→  details:    () => [...agentKeys.all, 'detail'] as const,
+   380→   380→  detail:     (id: AgentId) => [...agentKeys.details(), id] as const,
+   381→   381→};
+   382→   382→
+   383→   383→export const knowledgeKeys = {
+   384→   384→  all:        ['knowledge'] as const,
+   385→   385→  lists:      () => [...knowledgeKeys.all, 'list'] as const,
+   386→   386→  list:       (filters?: KBFilters) => [...knowledgeKeys.lists(), filters] as const,
+   387→   387→  details:    () => [...knowledgeKeys.all, 'detail'] as const,
+   388→   388→  detail:     (id: KnowledgeBaseId) => [...knowledgeKeys.details(), id] as const,
+   389→   389→  documents:  (id: KnowledgeBaseId) => [...knowledgeKeys.detail(id), 'documents'] as const,
+   390→   390→};
+   391→   391→
+   392→   392→export const memoryKeys = {
+   393→   393→  all:        ['memory'] as const,
+   394→   394→  lists:      () => [...memoryKeys.all, 'list'] as const,
+   395→   395→  list:       (filters?: MemoryFilters) => [...memoryKeys.lists(), filters] as const,
+   396→   396→  details:    () => [...memoryKeys.all, 'detail'] as const,
+   397→   397→  detail:     (id: MemoryPackId) => [...memoryKeys.details(), id] as const,
+   398→   398→  versions:   (id: MemoryPackId) => [...memoryKeys.detail(id), 'versions'] as const,
+   399→   399→};
+   400→   400→
+   401→   401→export const userKeys = {
+   402→   402→  all:        ['user'] as const,
+   403→   403→  me:         () => [...userKeys.all, 'me'] as const,
+   404→   404→  preferences:() => [...userKeys.all, 'preferences'] as const,
+   405→   405→  workspaces: () => [...userKeys.all, 'workspaces'] as const,
+   406→   406→};
+   407→   407→```
+   408→   408→
+   409→   409→### 6.4 Cache Invalidation Strategy
+   410→   410→
+   411→   411→Cache invalidation follows a strict hierarchical pattern. Mutations invalidate the narrowest possible key prefix to avoid over-refetching.
+   412→   412→
+   413→   413→| Mutation | Invalidation Scope | Rationale |
+   414→   414→|----------|-------------------|-----------|
+   415→   415→| Send message | `chatKeys.messages(chatId)` | Only the current conversation's messages change. |
+   416→   416→| Create chat session | `chatKeys.lists()` | New session appears in the list. |
+   417→   417→| Delete chat session | `chatKeys.lists()` + `chatKeys.detail(id)` | Removed from list and detail cache cleared. |
+   418→   418→| Update agent | `agentKeys.detail(id)` + `agentKeys.lists()` | Detail updated, list may show changed status/name. |
+   419→   419→| Create agent | `agentKeys.lists()` | New agent appears in list. |
+   420→   420→| Upload document | `knowledgeKeys.documents(kbId)` + `knowledgeKeys.detail(kbId)` | Document count and processing status change. |
+   421→   421→| Update memory pack | `memoryKeys.detail(id)` + `memoryKeys.lists()` | Detail updated, list may show changed version count. |
+   422→   422→| Update user preferences | `userKeys.preferences()` | Only preferences cache needs refresh. |
+   423→   423→
+   424→   424→Optimistic updates are applied for create, update, and delete mutations. On success, the optimistic update becomes permanent. On error, the cache is rolled back to the previous state and a toast notification displays the Persian error message.
+   425→   425→
+   426→   426→---
+   427→   427→
+   428→   428→## 7. RTL Integration
+   429→   429→
+   430→   430→HotHoosh is Persian-first and RTL-native. Right-to-left support is not an afterthought or a conditional layer — it is the default. The entire styling system is built on CSS logical properties that automatically adapt to the document's `dir` attribute, making bidirectional support structural rather than conditional.
+   431→   431→
+   432→   432→### 7.1 CSS Logical Properties
+   433→   433→
+   434→   434→Per Engineering Rules §10.1.4 and Design Decision DD-12, all spacing, positioning, and sizing use CSS logical properties exclusively. Physical properties (`left`, `right`, `ml-*`, `mr-*`, `pl-*`, `pr-*`) are forbidden.
+   435→   435→
+   436→   436→| Physical Property (FORBIDDEN) | Logical Property (REQUIRED) | Tailwind Class | Behavior in RTL | Behavior in LTR |
+   437→   437→|-------------------------------|---------------------------|----------------|-----------------|-----------------|
+   438→   438→| `margin-left` | `margin-inline-start` | `ms-*` | `margin-right` | `margin-left` |
+   439→   439→| `margin-right` | `margin-inline-end` | `me-*` | `margin-left` | `margin-right` |
+   440→   440→| `padding-left` | `padding-inline-start` | `ps-*` | `padding-right` | `padding-left` |
+   441→   441→| `padding-right` | `padding-inline-end` | `pe-*` | `padding-left` | `padding-right` |
+   442→   442→| `text-align: left` | `text-align: start` | `text-start` | `text-align: right` | `text-align: left` |
+   443→   443→| `text-align: right` | `text-align: end` | `text-end` | `text-align: left` | `text-align: right` |
+   444→   444→| `left: 0` | `inset-inline-start: 0` | `start-0` | `right: 0` | `left: 0` |
+   445→   445→| `right: 0` | `inset-inline-end: 0` | `end-0` | `left: 0` | `right: 0` |
+   446→   446→| `width` | `inline-size` | `is-*` | Same (block axis unaffected) | Same |
+   447→   447→| `height` | `block-size` | `bs-*` | Same (inline axis unaffected) | Same |
+   448→   448→| `border-left` | `border-inline-start` | `border-s-*` | `border-right` | `border-left` |
+   449→   449→| `border-right` | `border-inline-end` | `border-e-*` | `border-left` | `border-right` |
+   450→   450→
+   451→   451→An ESLint rule (`no-physical-properties`) enforces this at the lint level. Any use of `left`, `right`, `margin-left`, `margin-right`, `padding-left`, `padding-right` (in CSS or Tailwind classes `ml-*`, `mr-*`, `pl-*`, `pr-*`) is a build error.
+   452→   452→
+   453→   453→### 7.2 Tailwind RTL Configuration
+   454→   454→
+   455→   455→Tailwind CSS 4 provides native support for logical properties. The configuration maps logical utility classes to their CSS counterparts:
+   456→   456→
+   457→   457→- `ms-*` → `margin-inline-start`
+   458→   458→- `me-*` → `margin-inline-end`
+   459→   459→- `ps-*` → `padding-inline-start`
+   460→   460→- `pe-*` → `padding-inline-end`
+   461→   461→- `start-*` → `inset-inline-start`
+   462→   462→- `end-*` → `inset-inline-end`
+   463→   463→- `rounded-s-*` → `border-start-start-radius` and `border-end-start-radius`
+   464→   464→- `rounded-e-*` → `border-start-end-radius` and `border-end-end-radius`
+   465→   465→
+   466→   466→Flexbox and grid automatically respect the document direction. `flex-row` renders items left-to-right in LTR and right-to-left in RTL. `justify-start` aligns to the inline start (left in LTR, right in RTL).
+   467→   467→
+   468→   468→### 7.3 Vazirmatn Font Loading
+   469→   469→
+   470→   470→The Vazirmatn typeface is self-hosted in `public/fonts/` and loaded via Next.js `next/font/local`:
+   471→   471→
+   472→   472→```typescript
+   473→   473→// src/app/layout.tsx
+   474→   474→import localFont from 'next/font/local';
+   475→   475→
+   476→   476→const vazirmatn = localFont({
+   477→   477→  src: [
+   478→   478→    { path: '../../public/fonts/vazirmatn-var.woff2', style: 'normal' },
+   479→   479→  ],
+   480→   480→  variable: '--font-vazirmatn',
+   481→   481→  display: 'swap',
+   482→   482→  preload: true,
+   483→   483→});
+   484→   484→```
+   485→   485→
+   486→   486→The `font-display: swap` prevents invisible text during font loading (FOIT). The `preload: true` hint ensures the critical font file begins downloading immediately. The CSS variable `--font-vazirmatn` is applied to the `:root` selector, making it available to all Tailwind utilities and CSS custom properties.
+   487→   487→
+   488→   488→### 7.4 Direction Switching
+   489→   489→
+   490→   490→The root `<html>` element's `dir` attribute controls the entire page direction. By default, it is set to `"rtl"` for Persian users. When the user switches to English, the `dir` attribute changes to `"ltr"`.
+   491→   491→
+   492→   492→```typescript
+   493→   493→// The theme store also manages direction
+   494→   494→<html
+   495→   495→  dir={locale === 'fa' ? 'rtl' : 'ltr'}
+   496→   496→  lang={locale}
+   497→   497→  className={vazirmatn.variable}
+   498→   498→  data-theme={theme}
+   499→   499→>
+   500→   500→```
+
+[showing lines 1-500 of 960; use offset=501 with limit to continue reading]

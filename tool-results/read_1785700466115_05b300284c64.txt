@@ -1,0 +1,804 @@
+     1→# UI System — HotHoosh Enterprise AI Workspace
+     2→
+     3→---
+     4→
+     5→## 1. Design Philosophy
+     6→
+     7→### 1.1 Minimal Glass Enterprise
+     8→
+     9→HotHoosh follows a **Minimal Glass Enterprise** aesthetic — a design language that merges glass morphism with the data-density demands of enterprise software. The visual identity communicates professionalism, clarity, and depth without visual clutter.
+    10→
+    11→Core characteristics:
+    12→
+    13→| Characteristic | Description |
+    14→|----------------|-------------|
+    15→| **Glass surfaces** | Translucent panels with `backdrop-filter: blur()` create a layered, dimensional UI. Depth is communicated through opacity and blur, not through heavy shadows or borders. |
+    16→| **Enterprise data density** | Despite the glass aesthetic, information is never sacrificed for decoration. Tables, dashboards, and forms present dense data with clear hierarchy and scannable structure. |
+    17→| **Persian-first, RTL-native** | The entire interface is built RTL-first. Persian (فارسی) is the default language. English is a secondary option. CSS logical properties are mandatory — no physical direction properties. |
+    18→| **Depth hierarchy** | Four glass surface tiers (`glass-panel-solid`, `glass-panel-elevated`, `glass-panel-data`, `glass-panel-subtle`) create a clear visual stack: structural chrome → elevated content → data surfaces → interactive states. |
+    19→| **Minimal decoration** | No gratuitous gradients, no decorative illustrations in core UI, no unnecessary borders. Content is the focus. |
+    20→| **Dark/light parity** | Both themes are first-class citizens. Neither theme is an afterthought. All color pairings in dark mode meet the same WCAG contrast requirements as light mode. |
+    21→
+    22→### 1.2 Guiding Principles
+    23→
+    24→1. **Content over chrome** — UI elements serve content, never compete with it.
+    25→2. **Consistency over cleverness** — Predictable patterns beat novel interactions.
+    26→3. **Accessibility over aesthetics** — If a visual treatment fails contrast, it is removed.
+    27→4. **Performance over polish** — Animations and effects must not degrade rendering performance.
+    28→5. **Tokens over values** — Every color, size, and spacing value is a design token. Hardcoded values are forbidden.
+    29→
+    30→---
+    31→
+    32→## 2. Design Tokens — Colors
+    33→
+    34→### 2.1 Primary Colors
+    35→
+    36→Indigo-based primary palette. The primary color is used for interactive elements (buttons, links, selected states) and brand identity.
+    37→
+    38→| CSS Variable | Light Mode | Dark Mode | Usage |
+    39→|--------------|------------|-----------|-------|
+    40→| `--color-primary-50` | `#eef2ff` | `#1e1b4b` | Minimal primary tint backgrounds |
+    41→| `--color-primary-100` | `#e0e7ff` | `#312e81` | Selected row backgrounds, light highlights |
+    42→| `--color-primary-200` | `#c7d2fe` | `#3730a3` | Light borders, subtle accents |
+    43→| `--color-primary-300` | `#a5b4fc` | `#4338ca` | Disabled/secondary interactive elements |
+    44→| `--color-primary-400` | `#818cf8` | `#6366f1` | Hover states, secondary buttons |
+    45→| `--color-primary-500` | `#6366f1` | `#818cf8` | **Primary brand color.** Buttons, links, active indicators. |
+    46→| `--color-primary-600` | `#4f46e5` | `#a5b4fc` | Pressed states, strong emphasis |
+    47→| `--color-primary-700` | `#4338ca` | `#c7d2fe` | Primary text on dark backgrounds |
+    48→| `--color-primary-800` | `#3730a3` | `#e0e7ff` | Headings, strong labels |
+    49→| `--color-primary-900` | `#312e81` | `#eef2ff` | Maximum emphasis text |
+    50→
+    51→### 2.2 Semantic Colors
+    52→
+    53→| CSS Variable | Light Mode | Dark Mode | Usage |
+    54→|--------------|------------|-----------|-------|
+    55→| `--color-success-50` | `#f0fdf4` | `#052e16` | Success background tint |
+    56→| `--color-success-100` | `#dcfce7` | `#14532d` | Success light background |
+    57→| `--color-success-500` | `#22c55e` | `#4ade80` | **Success indicator.** Active status, confirmed actions. |
+    58→| `--color-success-600` | `#16a34a` | `#22c55e` | Success text, success hover |
+    59→| `--color-success-700` | `#15803d` | `#86efac` | Success strong text |
+    60→| `--color-warning-50` | `#fffbeb` | `#451a03` | Warning background tint |
+    61→| `--color-warning-100` | `#fef3c7` | `#78350f` | Warning light background |
+    62→| `--color-warning-500` | `#f59e0b` | `#fbbf24` | **Warning indicator.** Pending states, caution. |
+    63→| `--color-warning-600` | `#d97706` | `#f59e0b` | Warning text, warning hover |
+    64→| `--color-warning-700` | `#b45309` | `#fde68a` | Warning strong text |
+    65→| `--color-error-50` | `#fef2f2` | `#450a0a` | Error background tint |
+    66→| `--color-error-100` | `#fee2e2` | `#7f1d1d` | Error light background |
+    67→| `--color-error-500` | `#ef4444` | `#f87171` | **Error indicator.** Validation errors, failed states. |
+    68→| `--color-error-600` | `#dc2626` | `#ef4444` | Error text, error hover |
+    69→| `--color-error-700` | `#b91c1c` | `#fca5a5` | Error strong text |
+    70→| `--color-info-50` | `#eff6ff` | `#172554` | Info background tint |
+    71→| `--color-info-100` | `#dbeafe` | `#1e3a5f` | Info light background |
+    72→| `--color-info-500` | `#3b82f6` | `#60a5fa` | **Info indicator.** Informational notices, neutral highlights. |
+    73→| `--color-info-600` | `#2563eb` | `#3b82f6` | Info text, info hover |
+    74→| `--color-info-700` | `#1d4ed8` | `#93c5fd` | Info strong text |
+    75→
+    76→### 2.3 Surface Colors
+    77→
+    78→Glass surface backgrounds for the four-tier depth system.
+    79→
+    80→| CSS Variable | Light Mode | Dark Mode | Usage |
+    81→|--------------|------------|-----------|-------|
+    82→| `--color-surface-solid` | `rgba(255, 255, 255, 0.92)` | `rgba(17, 17, 27, 0.95)` | Highest opacity. Sidebars, top bars. |
+    83→| `--color-surface-elevated` | `rgba(255, 255, 255, 0.80)` | `rgba(30, 30, 46, 0.85)` | Medium opacity. Cards, modals, slide-overs. |
+    84→| `--color-surface-data` | `rgba(255, 255, 255, 0.65)` | `rgba(40, 40, 60, 0.70)` | Slightly transparent. Data tables, stat cards. |
+    85→| `--color-surface-subtle` | `rgba(255, 255, 255, 0.40)` | `rgba(55, 55, 75, 0.45)` | Lowest opacity. Hover states, separators, ghosts. |
+    86→| `--color-background` | `#f8fafc` | `#0d0d14` | Page/body background behind all glass. |
+    87→| `--color-background-subtle` | `#f1f5f9` | `#111118` | Subtle background variation. |
+    88→
+    89→### 2.4 Text Colors
+    90→
+    91→| CSS Variable | Light Mode | Dark Mode | Usage |
+    92→|--------------|------------|-----------|-------|
+    93→| `--color-text-primary` | `#0f172a` | `#f1f5f9` | Headings, primary body text, high-emphasis content. |
+    94→| `--color-text-secondary` | `#475569` | `#94a3b8` | Secondary text, descriptions, supporting content. |
+    95→| `--color-text-muted` | `#94a3b8` | `#64748b` | Placeholders, captions, disabled labels, timestamps. |
+    96→| `--color-text-disabled` | `#cbd5e1` | `#475569` | Disabled input text, inactive elements. |
+    97→| `--color-text-inverse` | `#ffffff` | `#0f172a` | Text on primary-colored backgrounds. |
+    98→| `--color-text-link` | `var(--color-primary-500)` | `var(--color-primary-400)` | Links and link-like interactive text. |
+    99→
+   100→### 2.5 Accent Color
+   101→
+   102→A distinctive warm accent used sparingly for attention-drawing elements: active sidebar indicators, notification badges, key highlights.
+   103→
+   104→| CSS Variable | Light Mode | Dark Mode | Usage |
+   105→|--------------|------------|-----------|-------|
+   106→| `--color-accent` | `#f97316` | `#fb923c` | **Primary accent.** Active sidebar indicator, notification dots, key highlights. |
+   107→| `--color-accent-light` | `#fed7aa` | `#7c2d12` | Accent light background tint. |
+   108→| `--color-accent-dark` | `#c2410c` | `#fdba74` | Accent dark variant, accent text on light bg. |
+   109→| `--color-accent-muted` | `#fdba74` | `#9a3412` | Muted accent, secondary accent elements. |
+   110→
+   111→### 2.6 Border Colors
+   112→
+   113→| CSS Variable | Light Mode | Dark Mode | Usage |
+   114→|--------------|------------|-----------|-------|
+   115→| `--color-border-default` | `rgba(0, 0, 0, 0.08)` | `rgba(255, 255, 255, 0.08)` | Default borders on glass panels, inputs. |
+   116→| `--color-border-strong` | `rgba(0, 0, 0, 0.15)` | `rgba(255, 255, 255, 0.15)` | Stronger borders for emphasis, focus rings. |
+   117→| `--color-border-focus` | `var(--color-primary-500)` | `var(--color-primary-400)` | Input focus border. |
+   118→| `--color-border-error` | `var(--color-error-500)` | `var(--color-error-500)` | Validation error border. |
+   119→
+   120→### 2.7 Dark Mode Switching Mechanism
+   121→
+   122→Dark mode is implemented by re-declaring all CSS variables under the `[data-theme="dark"]` selector. The `data-theme` attribute is set on the `<html>` element.
+   123→
+   124→```css
+   125→:root {
+   126→  --color-primary-500: #6366f1;
+   127→  --color-text-primary: #0f172a;
+   128→  --color-background: #f8fafc;
+   129→  /* ... all light mode tokens */
+   130→}
+   131→
+   132→[data-theme="dark"] {
+   133→  --color-primary-500: #818cf8;
+   134→  --color-text-primary: #f1f5f9;
+   135→  --color-background: #0d0d14;
+   136→  /* ... all dark mode tokens */
+   137→}
+   138→```
+   139→
+   140→Tailwind's `dark:` variant is **never used**. All theme-aware styling references CSS variables via `var(--color-*)`. See §10 for full implementation details.
+   141→
+   142→---
+   143→
+   144→## 3. Design Tokens — Typography
+   145→
+   146→### 3.1 Font Family
+   147→
+   148→| CSS Variable | Value | Fallback | Usage |
+   149→|--------------|-------|----------|-------|
+   150→| `--font-sans` | `'Vazirmatn', sans-serif` | Tahoma, Arial | All Persian and Latin UI text. |
+   151→| `--font-mono` | `'JetBrains Mono', 'Fira Code', monospace` | `monospace` | Code blocks, terminal output, JSON, technical values. |
+   152→
+   153→Vazirmatn is self-hosted from `/public/fonts/`. It is preloaded with `font-display: swap` to prevent layout shift. Persian text automatically renders with Vazirmatn through the `--font-sans` token. Latin text within Persian content also uses Vazirmatn (which includes Latin glyphs).
+   154→
+   155→### 3.2 Type Scale
+   156→
+   157→All font sizes are defined as CSS variables. Hardcoded font sizes are forbidden per Engineering Rules §10.1.4.
+   158→
+   159→| CSS Variable | Token Name | Font Size | Font Weight | Line Height | Letter Spacing | Usage |
+   160→|--------------|------------|-----------|-------------|-------------|----------------|-------|
+   161→| `--text-caption-xs` | `caption-xs` | `10px` | `400` | `14px` | `0.02em` | Metadata, micro-labels, table footers. |
+   162→| `--text-caption-sm` | `caption-sm` | `12px` | `400` | `16px` | `0.01em` | Captions, stat card labels, timestamps, helper text. |
+   163→| `--text-body-sm` | `body-sm` | `13px` | `400` | `18px` | `0` | Secondary body text, table cells, descriptions. |
+   164→| `--text-body-md` | `body-md` | `14px` | `400` | `20px` | `0` | **Default body text.** Form labels, paragraphs, list items. |
+   165→| `--text-body-lg` | `body-lg` | `16px` | `400` | `24px` | `0` | Emphasized body text, chat messages, form input values. |
+   166→| `--text-heading-sm` | `heading-sm` | `18px` | `600` | `26px` | `-0.01em` | Section headings, card titles, sidebar section labels. |
+   167→| `--text-heading-md` | `heading-md` | `20px` | `600` | `28px` | `-0.01em` | Page sub-headings, dialog titles, form section headers. |
+   168→| `--text-heading-lg` | `heading-lg` | `24px` | `600` | `32px` | `-0.02em` | Page titles, major section headings. |
+   169→| `--text-heading-xl` | `heading-xl` | `30px` | `700` | `38px` | `-0.02em` | Dashboard hero metrics, empty state titles. |
+   170→| `--text-heading-2xl` | `heading-2xl` | `36px` | `700` | `44px` | `-0.03em` | Stat card values, major KPI displays. |
+   171→| `--text-display` | `display` | `48px` | `700` | `56px` | `-0.03em` | Hero sections, marketing pages, onboarding. |
+   172→
+   173→### 3.3 Monospace Scale
+   174→
+   175→| CSS Variable | Token Name | Font Size | Line Height | Usage |
+   176→|--------------|------------|-----------|-------------|-------|
+   177→| `--text-mono-sm` | `mono-sm` | `12px` | `16px` | Inline code, small code references. |
+   178→| `--text-mono-md` | `mono-md` | `13px` | `18px` | Code blocks in chat, JSON display. |
+   179→| `--text-mono-lg` | `mono-lg` | `14px` | `20px` | Full code blocks, terminal output. |
+   180→
+   181→### 3.4 Font Weight Tokens
+   182→
+   183→| CSS Variable | Value | Usage |
+   184→|--------------|-------|-------|
+   185→| `--font-weight-regular` | `400` | Body text, captions, form values. |
+   186→| `--font-weight-medium` | `500` | Emphasized labels, button text, table headers. |
+   187→| `--font-weight-semibold` | `600` | Headings, navigation items, active states. |
+   188→| `--font-weight-bold` | `700` | Display text, major KPI values, brand text. |
+   189→
+   190→---
+   191→
+   192→## 4. Design Tokens — Spacing
+   193→
+   194→All spacing values are based on a **4px grid**. Tailwind utility classes (`p-4`, `gap-2`, `m-6`) map to this scale. Semantic spacing tokens exist for common patterns.
+   195→
+   196→### 4.1 Spacing Scale
+   197→
+   198→| CSS Variable | Token Name | Value | Tailwind Equivalent |
+   199→|--------------|------------|-------|---------------------|
+   200→| `--space-1` | `space-1` | `4px` | `1` (e.g., `p-1`) |
+   201→| `--space-2` | `space-2` | `8px` | `2` (e.g., `p-2`, `gap-2`) |
+   202→| `--space-3` | `space-3` | `12px` | `3` (e.g., `p-3`) |
+   203→| `--space-4` | `space-4` | `16px` | `4` (e.g., `p-4`, `gap-4`) |
+   204→| `--space-5` | `space-5` | `20px` | `5` (e.g., `p-5`) |
+   205→| `--space-6` | `space-6` | `24px` | `6` (e.g., `p-6`, `gap-6`) |
+   206→| `--space-8` | `space-8` | `32px` | `8` (e.g., `p-8`) |
+   207→| `--space-10` | `space-10` | `40px` | `10` (e.g., `p-10`) |
+   208→| `--space-12` | `space-12` | `48px` | `12` (e.g., `p-12`) |
+   209→| `--space-16` | `space-16` | `64px` | `16` (e.g., `p-16`) |
+   210→| `--space-20` | `space-20` | `80px` | `20` (e.g., `p-20`) |
+   211→
+   212→### 4.2 Semantic Spacing
+   213→
+   214→| CSS Variable | Value | Usage |
+   215→|--------------|-------|-------|
+   216→| `--space-component-gap` | `var(--space-4)` | Default gap between sibling components. |
+   217→| `--space-section-gap` | `var(--space-8)` | Gap between major page sections. |
+   218→| `--space-page-padding` | `var(--space-6)` | Default page content padding (`p-6`). |
+   219→| `--space-input-padding-x` | `var(--space-3)` | Input horizontal padding. |
+   220→| `--space-input-padding-y` | `var(--space-2)` | Input vertical padding. |
+   221→| `--space-card-padding` | `var(--space-6)` | Default card inner padding. |
+   222→| `--space-table-cell-padding` | `var(--space-3) var(--space-4)` | Table cell padding (block × inline). |
+   223→
+   224→---
+   225→
+   226→## 5. Design Tokens — Border Radius
+   227→
+   228→| CSS Variable | Token Name | Value | Usage |
+   229→|--------------|------------|-------|-------|
+   230→| `--radius-xs` | `radius-xs` | `2px` | Subtle rounding: code blocks, inline tags, small badges. |
+   231→| `--radius-sm` | `radius-sm` | `4px` | Inputs, small buttons, select dropdowns. |
+   232→| `--radius-md` | `radius-md` | `8px` | **Default radius.** Cards, dialogs, buttons, tooltips. |
+   233→| `--radius-lg` | `radius-lg` | `12px` | Large cards, modals, slide-overs, popovers. |
+   234→| `--radius-xl` | `radius-xl` | `16px` | Hero sections, large panels, onboarding cards. |
+   235→| `--radius-2xl` | `radius-2xl` | `24px` | Feature showcases, large decorative containers. |
+   236→| `--radius-full` | `radius-full` | `9999px` | Circles: avatars, status dots, pill buttons, badges. |
+   237→
+   238→---
+   239→
+   240→## 6. Design Tokens — Shadows
+   241→
+   242→HotHoosh's glass morphism aesthetic relies on `backdrop-filter: blur()` for depth rather than heavy box-shadows. Shadows are used sparingly and only for elements that need to float above glass surfaces (dropdowns, popovers, tooltips).
+   243→
+   244→### 6.1 Shadow Scale
+   245→
+   246→| CSS Variable | Light Mode | Dark Mode | Usage |
+   247→|--------------|------------|-----------|-------|
+   248→| `--shadow-xs` | `0 1px 2px rgba(0, 0, 0, 0.04)` | `0 1px 2px rgba(0, 0, 0, 0.20)` | Minimal elevation: subtle cards. |
+   249→| `--shadow-sm` | `0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)` | `0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20)` | Small elevation: dropdowns, popovers. |
+   250→| `--shadow-md` | `0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.04)` | `0 4px 6px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.25)` | Medium elevation: slide-overs, command palette. |
+   251→| `--shadow-lg` | `0 10px 15px rgba(0, 0, 0, 0.06), 0 4px 6px rgba(0, 0, 0, 0.04)` | `0 10px 15px rgba(0, 0, 0, 0.40), 0 4px 6px rgba(0, 0, 0, 0.30)` | High elevation: modals, dialogs. |
+   252→| `--shadow-xl` | `0 20px 25px rgba(0, 0, 0, 0.06), 0 8px 10px rgba(0, 0, 0, 0.04)` | `0 20px 25px rgba(0, 0, 0, 0.45), 0 8px 10px rgba(0, 0, 0, 0.35)` | Maximum elevation: fullscreen overlays. |
+   253→
+   254→### 6.2 Glass Depth Rule
+   255→
+   256→Glass panels **do not** use `box-shadow` for depth. Depth is achieved exclusively through:
+   257→
+   258→1. **Opacity differential** — more opaque surfaces appear closer to the viewer.
+   259→2. **Backdrop blur** — higher blur values increase perceived distance from the background.
+   260→3. **Border** — a subtle `1px solid` border with `--color-border-default` separates glass layers.
+   261→
+   262→Shadows are reserved for elements that must appear to "float" above all glass surfaces: dropdown menus, tooltip popovers, modal overlays, and the command palette.
+   263→
+   264→---
+   265→
+   266→## 7. Design Tokens — Glass Surfaces
+   267→
+   268→The four glass surface types form the backbone of the visual hierarchy. Each tier has a defined background opacity, blur value, and border treatment.
+   269→
+   270→### 7.1 glass-panel-solid
+   271→
+   272→**Highest opacity.** Used for structural chrome that must feel anchored and permanent.
+   273→
+   274→| Property | Light Mode | Dark Mode |
+   275→|----------|------------|-----------|
+   276→| Background | `var(--color-surface-solid)` → `rgba(255, 255, 255, 0.92)` | `var(--color-surface-solid)` → `rgba(17, 17, 27, 0.95)` |
+   277→| Backdrop Filter | `blur(16px) saturate(180%)` | `blur(16px) saturate(180%)` |
+   278→| Border | `1px solid var(--color-border-default)` | `1px solid var(--color-border-default)` |
+   279→| Shadow | `none` | `none` |
+   280→
+   281→**Usage:** Sidebars (workspace and admin), top bars, bottom navigation bars, fixed structural panels.
+   282→
+   283→```css
+   284→.glass-panel-solid {
+   285→  background: var(--color-surface-solid);
+   286→  backdrop-filter: blur(16px) saturate(180%);
+   287→  -webkit-backdrop-filter: blur(16px) saturate(180%);
+   288→  border: 1px solid var(--color-border-default);
+   289→}
+   290→```
+   291→
+   292→### 7.2 glass-panel-elevated
+   293→
+   294→**Medium opacity.** Used for content containers that float above the page background but below structural chrome.
+   295→
+   296→| Property | Light Mode | Dark Mode |
+   297→|----------|------------|-----------|
+   298→| Background | `var(--color-surface-elevated)` → `rgba(255, 255, 255, 0.80)` | `var(--color-surface-elevated)` → `rgba(30, 30, 46, 0.85)` |
+   299→| Backdrop Filter | `blur(12px) saturate(160%)` | `blur(12px) saturate(160%)` |
+   300→| Border | `1px solid var(--color-border-default)` | `1px solid var(--color-border-default)` |
+   301→| Shadow | `none` | `none` |
+   302→
+   303→**Usage:** Cards, modals, slide-over panels, dialog containers, form sections, chat panels.
+   304→
+   305→```css
+   306→.glass-panel-elevated {
+   307→  background: var(--color-surface-elevated);
+   308→  backdrop-filter: blur(12px) saturate(160%);
+   309→  -webkit-backdrop-filter: blur(12px) saturate(160%);
+   310→  border: 1px solid var(--color-border-default);
+   311→  border-radius: var(--radius-lg);
+   312→}
+   313→```
+   314→
+   315→### 7.3 glass-panel-data
+   316→
+   317→**Slightly transparent.** Used for data-dense surfaces where readability is critical but visual layering is still needed.
+   318→
+   319→| Property | Light Mode | Dark Mode |
+   320→|----------|------------|-----------|
+   321→| Background | `var(--color-surface-data)` → `rgba(255, 255, 255, 0.65)` | `var(--color-surface-data)` → `rgba(40, 40, 60, 0.70)` |
+   322→| Backdrop Filter | `blur(8px) saturate(140%)` | `blur(8px) saturate(140%)` |
+   323→| Border | `1px solid var(--color-border-default)` | `1px solid var(--color-border-default)` |
+   324→| Shadow | `none` | `none` |
+   325→
+   326→**Usage:** Data tables, stat cards (KPI cards), chart containers, metric panels, admin dashboard cards.
+   327→
+   328→```css
+   329→.glass-panel-data {
+   330→  background: var(--color-surface-data);
+   331→  backdrop-filter: blur(8px) saturate(140%);
+   332→  -webkit-backdrop-filter: blur(8px) saturate(140%);
+   333→  border: 1px solid var(--color-border-default);
+   334→  border-radius: var(--radius-md);
+   335→}
+   336→```
+   337→
+   338→### 7.4 glass-panel-subtle
+   339→
+   340→**Lowest opacity.** Used for interactive feedback and visual separation without creating a heavy surface.
+   341→
+   342→| Property | Light Mode | Dark Mode |
+   343→|----------|------------|-----------|
+   344→| Background | `var(--color-surface-subtle)` → `rgba(255, 255, 255, 0.40)` | `var(--color-surface-subtle)` → `rgba(55, 55, 75, 0.45)` |
+   345→| Backdrop Filter | `blur(4px) saturate(120%)` | `blur(4px) saturate(120%)` |
+   346→| Border | `1px solid var(--color-border-default)` | `1px solid var(--color-border-default)` |
+   347→| Shadow | `none` | `none` |
+   348→
+   349→**Usage:** Hover states on rows/items, subtle separators, ghost buttons background, drag preview, selection highlight.
+   350→
+   351→```css
+   352→.glass-panel-subtle {
+   353→  background: var(--color-surface-subtle);
+   354→  backdrop-filter: blur(4px) saturate(120%);
+   355→  -webkit-backdrop-filter: blur(4px) saturate(120%);
+   356→  border: 1px solid var(--color-border-default);
+   357→}
+   358→```
+   359→
+   360→---
+   361→
+   362→## 8. Design Tokens — Animation
+   363→
+   364→### 8.1 Duration Scale
+   365→
+   366→| CSS Variable | Value | Usage |
+   367→|--------------|-------|-------|
+   368→| `--duration-75` | `75ms` | Micro-interactions: hover color change, toggle switch, checkbox fill. |
+   369→| `--duration-150` | `150ms` | Small transitions: button press, tooltip appear, badge pulse. |
+   370→| `--duration-200` | `200ms` | Standard transitions: slide-over open/close, filter bar expand. |
+   371→| `--duration-300` | `300ms` | Medium transitions: modal open/close, page transitions, tab content switch. |
+   372→| `--duration-500` | `500ms` | Large transitions: complex layout changes, multi-element staggered reveals. |
+   373→
+   374→### 8.2 Easing Functions
+   375→
+   376→| CSS Variable | Value | Usage |
+   377→|--------------|-------|-------|
+   378→| `--ease-out` | `cubic-bezier(0.0, 0.0, 0.2, 1)` | Elements entering the viewport or appearing. |
+   379→| `--ease-in-out` | `cubic-bezier(0.4, 0.0, 0.2, 1)` | State changes that reverse (hover in/out, toggle). |
+   380→| `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Playful, bouncy interactions: toast entrance, notification badge pop. |
+   381→
+   382→### 8.3 Animation Rules
+   383→
+   384→| Rule | Description |
+   385→|------|-------------|
+   386→| Only animate `transform` and `opacity` | Animating layout properties (`width`, `height`, `top`, `margin`, `padding`) causes layout reflow. This is forbidden per Engineering Rules §10.1.4. |
+   387→| Use `will-change` sparingly | Apply `will-change: transform, opacity` only to elements that are currently animating, and remove it when the animation completes. |
+   388→| Respect `prefers-reduced-motion` | When `prefers-reduced-motion: reduce` is active, all transitions and animations are disabled. State changes are instant. |
+   389→| Stagger with delay, not duration | When animating multiple elements in sequence, use `transition-delay` increments (not different durations) to maintain visual consistency. |
+   390→
+   391→### 8.4 Reduced Motion
+   392→
+   393→```css
+   394→@media (prefers-reduced-motion: reduce) {
+   395→  *,
+   396→  *::before,
+   397→  *::after {
+   398→    animation-duration: 0.01ms !important;
+   399→    animation-iteration-count: 1 !important;
+   400→    transition-duration: 0.01ms !important;
+   401→    scroll-behavior: auto !important;
+   402→  }
+   403→}
+   404→```
+   405→
+   406→This is the only context where `!important` is permitted (per Engineering Rules §10.1.4 exception).
+   407→
+   408→---
+   409→
+   410→## 9. Component Library
+   411→
+   412→All components are part of the shared `@hotHoosh/ui` package (`packages/ui/`). Each component lives in its own directory with component file, test file, and barrel export. Admin-specific shared components are defined in Admin Panel §9.19 and are also implemented in this library.
+   413→
+   414→### 9.1 Layout
+   415→
+   416→| Component | Description | Variants | Key Props |
+   417→|-----------|-------------|----------|-----------|
+   418→| **WorkspaceShell** | Root layout for the user-facing workspace. Contains sidebar, top bar, and content area. Fixed sidebar + scrollable content. | — | `sidebarCollapsed: boolean`, `onSidebarToggle: () => void` |
+   419→| **AdminShell** | Root layout for the admin panel. Separate from WorkspaceShell — no shared state or CSS leakage. Fixed sidebar + top bar + scrollable content. | — | `sidebarCollapsed: boolean`, `onSidebarToggle: () => void` |
+   420→| **Sidebar** | Collapsible navigation sidebar. Glass-panel-solid surface. Grouped nav items with collapsible sections. Active state uses accent color with `border-inline-start` indicator. | `workspace` / `admin` | `items: NavItem[]`, `collapsed: boolean`, `activeId: string`, `onNavigate: (id: string) => void` |
+   421→| **TopBar** | Fixed top bar. Glass-panel-solid surface. Contains logo, global search trigger, notifications, and user menu. | `workspace` / `admin` | `tenantScope?: TenantScope`, `user: User`, `notificationCount: number` |
+   422→| **Breadcrumb** | Horizontal breadcrumb trail showing the current route hierarchy. Auto-generated from the route config. | `withIcons` / `withoutIcons` | `items: BreadcrumbItem[]`, `separator?: ReactNode` |
+   423→
+   424→### 9.2 Navigation
+   425→
+   426→| Component | Description | Variants | Key Props |
+   427→|-----------|-------------|----------|-----------|
+   428→| **NavLink** | Single sidebar navigation link. Supports icon, label, badge count, and nested children. | `default` / `active` / `disabled` | `icon: IconComponent`, `label: string`, `href: string`, `active: boolean`, `badge?: number`, `children?: NavItem[]` |
+   429→| **TabNav** | Horizontal tab navigation bar. Used in detail pages and admin panel content areas. Scrollable on mobile. | `underline` / `pill` | `tabs: Tab[]`, `activeId: string`, `onChange: (id: string) => void` |
+   430→| **CommandPalette** | Global command palette triggered by `Cmd+K` / `Ctrl+K`. Fuzzy search across entities with grouped results, recent searches, and quick actions. Keyboard navigable. | — | `open: boolean`, `onOpenChange: (open: boolean) => void`, `groups: CommandGroup[]` |
+   431→
+   432→### 9.3 Data Display
+   433→
+   434→| Component | Description | Variants | Key Props |
+   435→|-----------|-------------|----------|-----------|
+   436→| **DataTable** | Wrapper around TanStack Table. Column definitions, sorting, pagination, row selection, empty state, loading skeleton, column visibility toggle, row virtualization. | — | `columns: ColumnDef<T>[]`, `data: T[]`, `pagination: PaginationConfig`, `onRowClick?: (row: T) => void`, `selection?: SelectionConfig`, `virtual?: boolean` |
+   437→| **StatCard** | KPI card for dashboards. Icon, label, value (heading-2xl), trend indicator, click handler. Glass-panel-data surface. | — | `icon: IconComponent`, `label: string`, `value: string \| number`, `trend?: { direction: 'up' \| 'down' \| 'neutral', value: string }`, `onClick?: () => void`, `loading?: boolean` |
+   438→| **StatusBadge** | Reusable badge for entity status. Dot + text. | `active` / `inactive` / `suspended` / `pending` / `processing` / `failed` / `draft` | `status: StatusVariant`, `label?: string`, `size?: 'sm' \| 'md'` |
+   439→| **Avatar** | User avatar with image fallback to initials. | `sm` (32px) / `md` (40px) / `lg` (48px) / `xl` (64px) | `src?: string`, `name: string`, `size: AvatarSize` |
+   440→| **EmptyState** | Centered empty state for tables and pages. Icon, title, description, optional action button, optional illustration. | — | `icon: IconComponent`, `title: string`, `description?: string`, `primaryAction?: { label: string, onClick: () => void }`, `illustration?: ReactNode` |
+   441→| **Skeleton** | Loading placeholder that matches the shape of the content it replaces. | `text` / `circle` / `rect` / `card` / `table-row` | `variant: SkeletonVariant`, `width?: string \| number`, `height?: string \| number`, `lines?: number` |
+   442→| **FilterBar** | Composable horizontal filter row. URL-synced filters, debounced search, clear all, collapsible on mobile. | — | `filters: FilterConfig[]`, `values: Record<string, unknown>`, `onChange: (values: Record<string, unknown>) => void` |
+   443→
+   444→### 9.4 Forms
+   445→
+   446→| Component | Description | Variants | Key Props |
+   447→|-----------|-------------|----------|-----------|
+   448→| **Input** | Text input with label, helper text, and error state. RTL-aware. | `default` / `error` / `disabled` / `search` | `label: string`, `placeholder?: string`, `value: string`, `onChange: (value: string) => void`, `error?: string`, `disabled?: boolean` |
+   449→| **Select** | Dropdown selection with label and error state. | `default` / `error` / `disabled` / `searchable` | `label: string`, `options: SelectOption[]`, `value?: string`, `onChange: (value: string) => void`, `placeholder?: string`, `error?: string` |
+   450→| **Combobox** | Searchable dropdown with free-text option. Used for entity selection (users, agents, workspaces). | `default` / `creatable` / `multi` | `label: string`, `options: ComboboxOption[]`, `value?: string \| string[]`, `onChange: (value) => void`, `onSearch: (query: string) => void`, `loading?: boolean` |
+   451→| **DatePicker** | Solar Hijri date picker. Calendar grid with Persian month/day names, single and range modes, Jalaali-JS integration. | `single` / `range` | `label: string`, `value?: string \| [string, string]`, `onChange: (value) => void`, `minDate?: string`, `maxDate?: string` |
+   452→| **Toggle** | On/off switch with label. | `default` / `disabled` | `label: string`, `checked: boolean`, `onChange: (checked: boolean) => void`, `disabled?: boolean` |
+   453→| **Checkbox** | Checkbox with label. | `default` / `error` / `disabled` / `indeterminate` | `label: string`, `checked: boolean`, `onChange: (checked: boolean) => void`, `error?: string`, `indeterminate?: boolean` |
+   454→| **RadioGroup** | Radio button group with label. | `default` / `disabled` / `card` | `label: string`, `options: RadioOption[]`, `value?: string`, `onChange: (value: string) => void` |
+   455→| **Textarea** | Multi-line text input with label, character count, and error state. | `default` / `error` / `disabled` | `label: string`, `value: string`, `onChange: (value: string) => void`, `maxLength?: number`, `error?: string`, `rows?: number` |
+   456→| **FileUpload** | File upload area with drag-and-drop, progress indicator, and file list. | `single` / `multi` | `label: string`, `accept?: string`, `maxSize?: number`, `value?: File[]`, `onChange: (files: File[]) => void`, `uploading?: boolean`, `progress?: number` |
+   457→| **TagInput** | Input that converts entered text into tags/pills. Used for adding labels, categories, or multi-value fields. | — | `label: string`, `tags: string[]`, `onChange: (tags: string[]) => void`, `placeholder?: string`, `suggestions?: string[]` |
+   458→
+   459→### 9.5 Feedback
+   460→
+   461→| Component | Description | Variants | Key Props |
+   462→|-----------|-------------|----------|-----------|
+   463→| **Toast** | Non-blocking notification toast. Appears at bottom-start (RTL: bottom-right). Auto-dismisses. | `success` / `error` / `warning` / `info` | `title: string`, `description?: string`, `variant: ToastVariant`, `duration?: number` |
+   464→| **ConfirmationDialog** | Modal for confirming destructive or significant actions. Supports severity levels and text-input confirmation for high-risk actions. | `danger` / `warning` / `info` | `title: string`, `description: string`, `severity: SeverityLevel`, `confirmText?: string`, `confirmationInput?: string`, `onConfirm: () => void`, `onCancel: () => void` |
+   465→| **AlertDialog** | Modal for non-destructive important information. Title, description, single dismiss button. | — | `title: string`, `description: string`, `dismissLabel: string` |
+   466→| **Progress** | Progress indicator bar. | `linear` / `circular` | `value: number`, `max?: number`, `label?: string`, `size?: 'sm' \| 'md' \| 'lg'` |
+   467→| **Spinner** | Loading spinner. | `sm` (16px) / `md` (24px) / `lg` (40px) | `size: SpinnerSize`, `label?: string` (for screen readers) |
+   468→
+   469→### 9.6 Overlays
+   470→
+   471→| Component | Description | Variants | Key Props |
+   472→|-----------|-------------|----------|-----------|
+   473→| **Dialog** | Centered modal dialog with overlay backdrop, focus trap, and close-on-escape. | `default` / `full-screen` | `open: boolean`, `onOpenChange: (open: boolean) => void`, `title: string`, `children: ReactNode`, `footer?: ReactNode` |
+   474→| **SlideOver** | Panel that slides in from the `start` edge (right in RTL, left in LTR). Used for create/edit forms. Overlay backdrop with click-to-close. | `default` (400px) / `wide` (600px) | `open: boolean`, `onOpenChange: (open: boolean) => void`, `title: string`, `subtitle?: string`, `children: ReactNode`, `footer?: ReactNode` |
+   475→| **Drawer** | Bottom drawer for mobile. Slides up from bottom edge. | `default` / `full-height` | `open: boolean`, `onOpenChange: (open: boolean) => void`, `title: string`, `children: ReactNode` |
+   476→| **Popover** | Floating panel positioned relative to a trigger. Click or hover to open. | `click` / `hover` | `trigger: ReactNode`, `content: ReactNode`, `align?: 'start' \| 'center' \| 'end'`, `side?: 'top' \| 'bottom' \| 'inline-start' \| 'inline-end'` |
+   477→| **DropdownMenu** | Dropdown menu triggered by a button. Keyboard navigable. | — | `trigger: ReactNode`, `items: MenuItem[]`, `align?: 'start' \| 'end'` |
+   478→| **Tooltip** | Small informational popup on hover/focus. | `default` / `info` / `error` | `content: string`, `children: ReactNode`, `side?: 'top' \| 'bottom' \| 'inline-start' \| 'inline-end'`, `delay?: number` |
+   479→
+   480→### 9.7 Chat
+   481→
+   482→| Component | Description | Variants | Key Props |
+   483→|-----------|-------------|----------|-----------|
+   484→| **ChatInput** | Multi-line chat input with agent selector, knowledge base toggle, memory pack selector, file attachment, and send button. | `default` / `disabled` / `streaming` | `value: string`, `onChange: (value: string) => void`, `onSend: () => void`, `onAttach: (files: File[]) => void`, `disabled?: boolean`, `isStreaming?: boolean` |
+   485→| **MessageList** | Scrollable list of chat messages with auto-scroll to bottom on new messages. Virtualized for performance (100+ messages). | — | `messages: Message[]`, `isLoading: boolean`, `onLoadMore: () => void`, `hasMore: boolean` |
+   486→| **MessageBubble** | Single chat message. User messages and AI messages have distinct styling. Supports markdown rendering, code blocks, and copy button. | `user` / `assistant` / `system` | `message: Message`, `onCopy?: (text: string) => void`, `onRegenerate?: (messageId: string) => void` |
+   487→| **BranchSelector** | Inline control for navigating between message branches. Shows branch count and allows switching. | `compact` / `expanded` | `branches: Branch[]`, `activeBranchIndex: number`, `onSelect: (index: number) => void` |
+   488→| **StreamingIndicator** | Animated indicator showing AI is generating a response. Pulsing dots or typing animation. | `dots` / `typing` | `agentName?: string` |
+   489→| **AgentSelector** | Dropdown or sidebar selector for choosing which AI agent to converse with. Shows agent name, avatar, and status. | `dropdown` / `sidebar` | `agents: Agent[], `activeAgentId: string`, `onSelect: (agentId: string) => void` |
+   490→
+   491→### 9.8 Admin Shared Components (§9.19 Reference)
+   492→
+   493→The following components are shared across all admin pages and are part of the core component library:
+   494→
+   495→| Component | Description | Key Features |
+   496→|-----------|-------------|--------------|
+   497→| **DataTable** | (See §9.3) TanStack Table wrapper with sorting, pagination, row selection, virtualization, empty state, loading skeleton. | Type-safe generics, column visibility toggle, responsive horizontal scroll. |
+   498→| **FilterBar** | (See §9.3) Composable filter row with URL sync. | Debounced search (300ms), collapsible on mobile, active filter count badge. |
+   499→| **SlideOver** | (See §9.6) Start-edge sliding panel. | 400px / 600px width, focus trap, Escape to close, 200ms ease-out animation. |
+   500→| **DetailPageLayout** | Layout wrapper for detail pages. | Back button, breadcrumb, page header, tab navigation, content area, optional side panel. |
+   501→| **StatusBadge** | (See §9.3) Entity status badge. | 7 status variants: active, inactive, suspended, pending, processing, failed, draft. |
+   502→| **StatCard** | (See §9.3) Dashboard KPI card. | Icon, label, value (heading-2xl), trend indicator, loading skeleton, glass-panel-data surface. |
+   503→| **ConfirmationDialog** | (See §9.5) Destructive action confirmation. | Severity levels (danger/warning/info), text-input confirmation for high-risk actions. |
+   504→| **EmptyState** | (See §9.3) Empty state placeholder. | Icon, title, description, optional SVG illustration, primary/secondary actions. |
+   505→| **DatePicker** | (See §9.4) Solar Hijri date picker. | Persian month/day names, single/range modes, Jalaali-JS, RTL keyboard navigation. |
+   506→| **CommandPalette** | (See §9.2) Global Cmd+K search. | Fuzzy search, grouped results, recent searches (max 10), quick actions, keyboard navigation. |
+   507→
+   508→---
+   509→
+   510→## 10. Dark Mode Implementation
+   511→
+   512→### 10.1 Mechanism
+   513→
+   514→Dark mode is implemented exclusively through **CSS variable switching** on the `<html>` element. The `data-theme` attribute controls which set of variable values is active.
+   515→
+   516→```html
+   517→<html lang="fa" dir="rtl" data-theme="dark">
+   518→```
+   519→
+   520→```css
+   521→/* Light mode (default) */
+   522→:root {
+   523→  --color-primary-500: #6366f1;
+   524→  --color-text-primary: #0f172a;
+   525→  --color-background: #f8fafc;
+   526→  --color-surface-solid: rgba(255, 255, 255, 0.92);
+   527→  /* ... all light tokens */
+   528→}
+   529→
+   530→/* Dark mode */
+   531→[data-theme="dark"] {
+   532→  --color-primary-500: #818cf8;
+   533→  --color-text-primary: #f1f5f9;
+   534→  --color-background: #0d0d14;
+   535→  --color-surface-solid: rgba(17, 17, 27, 0.95);
+   536→  /* ... all dark tokens */
+   537→}
+   538→```
+   539→
+   540→### 10.2 Rules
+   541→
+   542→| Rule | Description |
+   543→|------|-------------|
+   544→| No Tailwind `dark:` variant | Tailwind's class-based dark mode is forbidden. All theme-aware values use `var(--color-*)`. This is non-negotiable per Engineering Rules §10.1.4. |
+   545→| No hardcoded colors | Hex, rgb, hsl values are forbidden. The only exceptions are `transparent` and `currentColor`. |
+   546→| Variable-only references | Components reference tokens, never raw values: `background: var(--color-surface-elevated)`, not `background: rgba(255,255,255,0.8)`. |
+   547→| Tailwind for layout only | Layout (flex, grid, spacing, sizing) uses Tailwind utilities. Colors, shadows, and effects use design token CSS variables via `var()`. |
+   548→
+   549→### 10.3 Theme Toggle Component
+   550→
+   551→| Prop | Type | Description |
+   552→|------|------|-------------|
+   553→| `theme` | `'light' \| 'dark' \| 'system'` | Current theme selection. |
+   554→| `onThemeChange` | `(theme: ThemePreference) => void` | Callback when user selects a theme. |
+   555→
+   556→The toggle offers three options: light (☀️), dark (🌙), and system (follows OS preference). The icon-only toggle cycles through the three states on click. An expanded popover shows all three options with labels.
+   557→
+   558→### 10.4 System Preference Detection
+   559→
+   560→On initial load (and on change), the app detects the OS preference via `window.matchMedia('(prefers-color-scheme: dark)')`:
+   561→
+   562→1. If the user has an explicit preference stored (`theme` in user preferences API), use it.
+   563→2. If no stored preference, follow the system preference.
+   564→3. If system preference changes and user has not set an explicit preference, follow the new system preference.
+   565→4. If user has set an explicit preference, system changes are ignored.
+   566→
+   567→### 10.5 Persistence
+   568→
+   569→Theme preference is stored per-user in the backend API (`PATCH /users/me/preferences { theme: 'dark' }`). On login, the preference is fetched and applied before the first render to prevent flash-of-wrong-theme (FOWT). The value is also cached in `localStorage` as a fallback for offline/reduced-functionality scenarios.
+   570→
+   571→---
+   572→
+   573→## 11. Responsive Breakpoints
+   574→
+   575→### 11.1 Breakpoint Definitions
+   576→
+   577→| Name | Min Width | Tailwind Prefix | Description |
+   578→|------|-----------|-----------------|-------------|
+   579→| `sm` | `640px` | `sm:` | Large phones / small tablets in landscape. |
+   580→| `md` | `768px` | `md:` | Tablets in portrait. |
+   581→| `lg` | `1024px` | `lg:` | Small laptops / large tablets. |
+   582→| `xl` | `1440px` | `xl:` | Desktops and large screens. |
+   583→
+   584→### 11.2 Layout Behavior by Breakpoint
+   585→
+   586→#### Mobile (< 640px)
+   587→
+   588→| Element | Behavior |
+   589→|---------|----------|
+   590→| **Sidebar** | Hidden by default. Accessible via hamburger menu as a Drawer (bottom sheet or full-height overlay). |
+   591→| **Top bar** | Full-width, compact. Logo only (no text). Search icon triggers CommandPalette. |
+   592→| **Content area** | Full-width with `var(--space-4)` padding. |
+   593→| **Data tables** | Horizontal scroll with sticky first column and action column. Alternatively, card-based layout for simple entities. |
+   594→| **Stat cards** | Stacked vertically (1 column). |
+   595→| **SlideOver** | Replaced by Drawer (bottom sheet). |
+   596→| **Tab navigation** | Horizontally scrollable with fade edges. |
+   597→| **Filter bar** | Collapsed behind a toggle button. |
+   598→| **Chat** | Full-screen message list with input fixed at bottom. Agent selector as a dropdown. |
+   599→
+   600→#### Tablet (640px–1023px)
+   601→
+   602→| Element | Behavior |
+   603→|---------|----------|
+   604→| **Sidebar** | Collapsed (icons only, 64px wide) by default. Expandable on hover or toggle. |
+   605→| **Top bar** | Full-width with logo text and condensed search. |
+   606→| **Content area** | `var(--space-6)` padding. |
+   607→| **Data tables** | Horizontal scroll. Key columns visible, less-important columns hidden via column visibility toggle. |
+   608→| **Stat cards** | 2-column grid. |
+   609→| **SlideOver** | Standard 400px width. |
+   610→| **Filter bar** | Visible but wrapped to multiple lines. |
+   611→
+   612→#### Desktop (1024px–1439px)
+   613→
+   614→| Element | Behavior |
+   615→|---------|----------|
+   616→| **Sidebar** | Expanded (256px / `w-64`) by default. User can collapse to icons-only. |
+   617→| **Top bar** | Full with all elements: logo, scope selector, search, notifications, user menu. |
+   618→| **Content area** | `var(--space-6)` padding. |
+   619→| **Data tables** | Full columns visible. Horizontal scroll only if columns exceed viewport. |
+   620→| **Stat cards** | 3-column grid (admin dashboard), 2-column (workspace). |
+   621→| **Filter bar** | Single horizontal row. |
+   622→
+   623→#### Large Desktop (≥ 1440px)
+   624→
+   625→| Element | Behavior |
+   626→|---------|----------|
+   627→| **Sidebar** | Expanded (256px). |
+   628→| **Content area** | `var(--space-8)` padding. Max content width `1440px`, centered. |
+   629→| **Data tables** | All columns visible, comfortable spacing. |
+   630→| **Stat cards** | 3–6 column grid depending on card count. |
+   631→| **Admin detail pages** | Split view enabled: list on one side, detail on the other (for roles/permissions). |
+   632→
+   633→### 11.3 Desktop-First for Admin, Mobile-Aware for Workspace
+   634→
+   635→The admin panel is **desktop-first** — it is designed and optimized for 1024px+ screens. Mobile and tablet views are functional but secondary. The user workspace is **mobile-aware** — chat and basic navigation work well on mobile, but complex features (agent configuration, knowledge base management) are optimized for desktop.
+   636→
+   637→---
+   638→
+   639→## 12. Accessibility Standards
+   640→
+   641→All user-facing features meet **WCAG 2.2 Level AA** compliance. This is a requirement, not a goal.
+   642→
+   643→### 12.1 Semantic HTML
+   644→
+   645→| Rule | Description |
+   646→|------|-------------|
+   647→| Correct elements | Use `<button>` for actions, `<a>` for navigation, `<nav>` for navigation landmarks, `<main>` for main content, `<aside>` for complementary content. |
+   648→| No div/span for interaction | Never use `<div>` or `<span>` with `onClick` for interactive elements. Use the correct semantic element. |
+   649→| Landmarks | Every page has `<header>`, `<main>`, and (where applicable) `<nav>` and `<aside>` landmarks. |
+   650→| Headings | Proper heading hierarchy (`h1` → `h2` → `h3`). Never skip levels. Each page has exactly one `h1`. |
+   651→
+   652→### 12.2 Focus Indicators
+   653→
+   654→| Requirement | Standard |
+   655→|-------------|----------|
+   656→| Default focus | Never use `outline: none` without a visible replacement. |
+   657→| Custom focus ring | Minimum `2px` offset, `3:1` contrast against adjacent background. |
+   658→| Focus visible | Use `:focus-visible` (not `:focus`) so keyboard users see the ring but mouse users do not. |
+   659→| Focus management — modals | When a dialog opens, focus moves to the first focusable element inside the dialog. When it closes, focus returns to the trigger. |
+   660→| Focus management — pages | On navigation, focus moves to the page heading or a skip-link target. |
+   661→| Focus trap | Modals, slide-overs, and command palette trap focus within their container. Tab does not escape. |
+   662→
+   663→### 12.3 Color Contrast
+   664→
+   665→| Context | Minimum Ratio |
+   666→|---------|---------------|
+   667→| Normal text (< 18px, < 14px bold) | **4.5:1** against background |
+   668→| Large text (≥ 18px, ≥ 14px bold) | **3:1** against background |
+   669→| Non-text UI components (borders, icons, form controls) | **3:1** against adjacent color |
+   670→| Focus indicators | **3:1** against background |
+   671→| Dark mode | Same requirements as light mode. Dark mode is not an afterthought. |
+   672→
+   673→No information is conveyed by color alone. Status indicators always include text labels or icons in addition to color (e.g., a green dot + "فعال" text, not just a green dot).
+   674→
+   675→### 12.4 Touch Targets
+   676→
+   677→| Context | Minimum Size |
+   678→|---------|--------------|
+   679→| All interactive elements on mobile | **44 × 44px** minimum |
+   680→| Dense data table rows | Expand the tap target with padding to meet 44px, even if the visible element is smaller. |
+   681→| Inline links within text | Minimum 44px height tap area via line-height or padding. |
+   682→| Icon-only buttons | 44 × 44px container, even if the icon is 16px or 24px. |
+   683→
+   684→### 12.5 Screen Reader Support
+   685→
+   686→| Requirement | Implementation |
+   687→|-------------|---------------|
+   688→| `alt` text | All images have descriptive `alt` text in the user's current language (Persian by default). |
+   689→| Icon-only buttons | Every icon-only button has `aria-label` in Persian (e.g., `aria-label="بستن"` for close). |
+   690→| Dynamic content | Chat messages, toast notifications, and real-time status updates use `aria-live="polite"` (or `"assertive"` for critical errors). |
+   691→| Loading states | Loading states exceeding 3 seconds announce status via `aria-live`: "در حال بارگذاری..." (Loading...). |
+   692→| Dialog roles | Modals use `role="dialog"`, `aria-modal="true"`, `aria-labelledby` (pointing to the dialog title). |
+   693→| Tab interfaces | Use `role="tablist"`, `role="tab" with `aria-selected`, `role="tabpanel" with `aria-labelledby`. |
+   694→| Data tables | Use `<table>` with proper `<thead>`, `<th scope="col">`, and `<caption>`. |
+   695→| Language declaration | `<html lang="fa" dir="rtl">` for Persian. Switches to `lang="en" dir="ltr"` for English. |
+   696→
+   697→### 12.6 Keyboard Navigation
+   698→
+   699→| Requirement | Standard |
+   700→|-------------|----------|
+   701→| All interactive elements | Reachable and operable via keyboard (Tab, Shift+Tab, Enter, Space, Arrow keys, Escape). |
+   702→| Tab order | Follows the visual/logical order of the page (top-to-bottom, start-to-end in RTL). |
+   703→| Skip link | A "skip to content" link is the first focusable element on every page. Visible on focus only. |
+   704→| Command palette | `Cmd+K` / `Ctrl+K` opens the global command palette. Arrow keys navigate, Enter selects, Escape closes. |
+   705→| Dropdown menus | Arrow keys navigate items. Enter selects. Escape closes. Focus returns to trigger. |
+   706→| Dialogs | Escape closes. Tab cycles through focusable elements within the dialog. |
+   707→| Checkboxes and toggles | Space key toggles state. |
+   708→| Radio groups | Arrow keys move between options. |
+   709→
+   710→### 12.7 Reduced Motion
+   711→
+   712→| Requirement | Implementation |
+   713→|-------------|---------------|
+   714→| `prefers-reduced-motion: reduce` | All transitions and animations are disabled. State changes are instant. |
+   715→| Loading indicators | Replace animated spinners with static "در حال بارگذاری..." text or a static progress bar. |
+   716→| Streaming indicator | Replace animated dots with static "در حال تولید پاسخ..." text. |
+   717→| Auto-scroll | Chat auto-scroll still works (no animation to disable) but does not use smooth scrolling. |
+   718→
+   719→---
+   720→
+   721→## Appendix A: CSS Variable Quick Reference
+   722→
+   723→### A.1 Color Variables (Complete List)
+   724→
+   725→```
+   726→/* Primary */
+   727→--color-primary-50, --color-primary-100, --color-primary-200, --color-primary-300,
+   728→--color-primary-400, --color-primary-500, --color-primary-600, --color-primary-700,
+   729→--color-primary-800, --color-primary-900
+   730→
+   731→/* Semantic */
+   732→--color-success-50, --color-success-100, --color-success-500, --color-success-600, --color-success-700
+   733→--color-warning-50, --color-warning-100, --color-warning-500, --color-warning-600, --color-warning-700
+   734→--color-error-50, --color-error-100, --color-error-500, --color-error-600, --color-error-700
+   735→--color-info-50, --color-info-100, --color-info-500, --color-info-600, --color-info-700
+   736→
+   737→/* Surface */
+   738→--color-surface-solid, --color-surface-elevated, --color-surface-data, --color-surface-subtle
+   739→--color-background, --color-background-subtle
+   740→
+   741→/* Text */
+   742→--color-text-primary, --color-text-secondary, --color-text-muted, --color-text-disabled,
+   743→--color-text-inverse, --color-text-link
+   744→
+   745→/* Accent */
+   746→--color-accent, --color-accent-light, --color-accent-dark, --color-accent-muted
+   747→
+   748→/* Border */
+   749→--color-border-default, --color-border-strong, --color-border-focus, --color-border-error
+   750→```
+   751→
+   752→**Total color tokens: 52**
+   753→
+   754→### A.2 Typography Variables
+   755→
+   756→```
+   757→--font-sans, --font-mono
+   758→--font-weight-regular, --font-weight-medium, --font-weight-semibold, --font-weight-bold
+   759→--text-caption-xs, --text-caption-sm, --text-body-sm, --text-body-md, --text-body-lg
+   760→--text-heading-sm, --text-heading-md, --text-heading-lg, --text-heading-xl, --text-heading-2xl
+   761→--text-display
+   762→--text-mono-sm, --text-mono-md, --text-mono-lg
+   763→```
+   764→
+   765→### A.3 Spacing Variables
+   766→
+   767→```
+   768→--space-1 (4px), --space-2 (8px), --space-3 (12px), --space-4 (16px), --space-5 (20px),
+   769→--space-6 (24px), --space-8 (32px), --space-10 (40px), --space-12 (48px),
+   770→--space-16 (64px), --space-20 (80px)
+   771→
+   772→--space-component-gap, --space-section-gap, --space-page-padding,
+   773→--space-input-padding-x, --space-input-padding-y, --space-card-padding, --space-table-cell-padding
+   774→```
+   775→
+   776→### A.4 Border Radius Variables
+   777→
+   778→```
+   779→--radius-xs (2px), --radius-sm (4px), --radius-md (8px), --radius-lg (12px),
+   780→--radius-xl (16px), --radius-2xl (24px), --radius-full (9999px)
+   781→```
+   782→
+   783→### A.5 Shadow Variables
+   784→
+   785→```
+   786→--shadow-xs, --shadow-sm, --shadow-md, --shadow-lg, --shadow-xl
+   787→```
+   788→
+   789→### A.6 Animation Variables
+   790→
+   791→```
+   792→--duration-75, --duration-150, --duration-200, --duration-300, --duration-500
+   793→--ease-out, --ease-in-out, --ease-spring
+   794→```
+   795→
+   796→### A.7 Glass Surface Classes
+   797→
+   798→```
+   799→.glass-panel-solid   /* backdrop-filter: blur(16px), opacity 0.92/0.95 */
+   800→.glass-panel-elevated /* backdrop-filter: blur(12px), opacity 0.80/0.85 */
+   801→.glass-panel-data    /* backdrop-filter: blur(8px),  opacity 0.65/0.70 */
+   802→.glass-panel-subtle  /* backdrop-filter: blur(4px),  opacity 0.40/0.45 */
+   803→```
+   804→
