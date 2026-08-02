@@ -1,0 +1,903 @@
+   296→## 3. Frontend Architecture
+   297→
+   298→### 3.1 Framework and Tooling
+   299→
+   300→| Layer | Technology | Version | Purpose |
+   301→|-------|-----------|---------|--------|
+   302→| Framework | Next.js (App Router) | 15+ | SSR, routing, code splitting, API integration |
+   303→| Language | TypeScript | 5.x | Strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` |
+   304→| Styling | Tailwind CSS | 4.x | Utility-first CSS with RTL logical properties |
+   305→| Components | shadcn/ui | latest | Accessible, composable component primitives |
+   306→| Client State | Zustand | 5.x | Lightweight, minimal-boilerplate state management |
+   307→| Server State | TanStack Query (React Query) | 5.x | Caching, refetching, optimistic updates |
+   308→| Form State | React Hook Form | 7.x | Performant form handling with minimal re-renders |
+   309→| Validation | Zod | 3.x | Shared schemas — same schema runs on client and server |
+   310→| Calendar | Day.js + jalaali-js | — | Solar Hijri calendar support |
+   311→| HTTP | Fetch API / Axios | — | API client with auth interceptors |
+   312→| Icons | Lucide React | latest | Consistent icon set |
+   313→| Charts | Recharts | — | Dashboard analytics (lazy-loaded) |
+   314→
+   315→### 3.2 State Management Boundaries
+   316→
+   317→HotHoosh enforces a strict separation of state management concerns. Overlapping these boundaries is a violation of Engineering Rules §10.4.1.
+   318→
+   319→| State Type | Tool | Scope | Examples |
+   320→|-----------|------|-------|----------|
+   321→| **Server state** | TanStack Query | API data: users, agents, knowledge bases, usage stats | `useQuery`, `useMutation`, `useInfiniteQuery` |
+   322→| **Client state** | Zustand | UI-only: theme, sidebar open/closed, command palette, selection | `useThemeStore`, `useSidebarStore` |
+   323→| **Form state** | React Hook Form + Zod | Form inputs: login form, create agent, upload document | `useForm` with `zodResolver` |
+   324→| **URL state** | Next.js `useSearchParams` | Filters, pagination, active tab | `?page=2&status=active&sort=created_at` |
+   325→
+   326→**Key rules:**
+   327→- Zustand stores never hold server data. If it came from the API, it belongs in TanStack Query.
+   328→- Zustand store actions are synchronous. Async work (API calls) lives in TanStack Query mutations, which call Zustand actions on success.
+   329→- Components read Zustand via selectors (`useThemeStore(s => s.theme)`) to prevent unnecessary re-renders.
+   330→- TanStack Query keys use a factory pattern: `chatKeys.messages(sessionId)`, `adminKeys.agents.list(filters)`.
+   331→
+   332→### 3.3 Routing Architecture
+   333→
+   334→Both `apps/web` and `apps/admin` use the **Next.js App Router** exclusively (`app/` directory). The Pages Router (`pages/`) does not exist.
+   335→
+   336→```
+   337→apps/web/src/app/
+   338→├── (auth)/                          # Unauthenticated route group
+   339→│   ├── login/page.tsx
+   340→│   ├── register/page.tsx            # Invitation-based registration
+   341→│   ├── forgot-password/page.tsx
+   342→│   └── layout.tsx                   # Centered, minimal layout
+   343→│
+   344→├── (workspace)/                     # Authenticated route group
+   345→│   ├── chat/
+   346→│   │   ├── page.tsx                 # Chat list
+   347→│   │   ├── [chatId]/page.tsx        # Active chat session
+   348→│   │   └── layout.tsx               # Chat sidebar + main area
+   349→│   ├── agents/
+   350→│   │   ├── page.tsx                 # Agent gallery
+   351→│   │   └── [agentId]/page.tsx       # Agent detail / test console
+   352→│   ├── knowledge/
+   353→│   │   ├── page.tsx                 # Knowledge base list
+   354→│   │   └── [kbId]/page.tsx          # Knowledge base detail + documents
+   355→│   ├── memory/page.tsx              # Memory pack management
+   356→│   ├── settings/page.tsx            # User settings (theme, 2FA, prefs)
+   357→│   └── layout.tsx                   # Workspace shell (sidebar, top bar)
+   358→│
+   359→├── layout.tsx                       # Root layout: providers, fonts, dir="rtl"
+   360→├── page.tsx                         # Redirect to /chat
+   361→├── globals.css                      # Design tokens + Tailwind base
+   362→├── not-found.tsx                    # Custom 404
+   363→└── error.tsx                        # Global error boundary
+   364→```
+   365→
+   366→```
+   367→apps/admin/src/app/
+   368→├── (auth)/                          # Shared auth (or redirects to web app)
+   369→├── (admin)/                         # Admin route group
+   370→│   ├── dashboard/page.tsx           # KPIs, charts, quick stats
+   371→│   ├── users/page.tsx               # User list with filters
+   372→│   ├── organizations/page.tsx       # Org management
+   373→│   ├── companies/page.tsx           # Company management
+   374→│   ├── brands/page.tsx              # Brand management
+   375→│   ├── agents/page.tsx              # Agent management
+   376→│   ├── memory-packs/page.tsx        # Memory pack management
+   377→│   ├── knowledge/page.tsx           # Knowledge base management
+   378→│   ├── api-providers/page.tsx       # AI provider management
+   379→│   ├── models/page.tsx              # Model configuration
+   380→│   ├── usage/page.tsx               # Usage analytics
+   381→│   ├── billing/page.tsx             # Billing, invoices, plans
+   382→│   ├── audit-logs/page.tsx          # Audit log viewer
+   383→│   ├── logs/page.tsx                # System logs (SSE streaming)
+   384→│   ├── roles/page.tsx               # RBAC management
+   385→│   ├── settings/page.tsx            # Global settings
+   386→│   └── layout.tsx                   # Admin shell (sidebar, top bar, breadcrumbs)
+   387→├── layout.tsx
+   388→└── globals.css
+   389→```
+   390→
+   391→### 3.4 Feature-Based Folder Structure
+   392→
+   393→Frontend code is organized by **feature**, not by type. Each feature directory is self-contained: it includes its own components, hooks, stores, services, types, and tests. A feature must be deletable without affecting other features.
+   394→
+   395→```
+   396→src/features/chat/
+   397→├── components/
+   398→│   ├── chat-input/
+   399→│   │   ├── index.tsx
+   400→│   │   ├── chat-input.module.css
+   401→│   │   └── chat-input.test.tsx
+   402→│   ├── message-list/
+   403→│   │   ├── index.tsx
+   404→│   │   └── message-list.test.tsx
+   405→│   ├── message-bubble/
+   406→│   ├── branch-selector/
+   407→│   └── streaming-indicator/
+   408→├── hooks/
+   409→│   ├── use-chat-messages.ts
+   410→│   ├── use-chat-streaming.ts
+   411→│   └── use-chat-branching.ts
+   412→├── stores/
+   413→│   └── chat.store.ts
+   414→├── services/
+   415→│   └── chat.service.ts             # API calls (axios/fetch wrappers)
+   416→├── types/
+   417→│   └── chat.types.ts
+   418→└── index.ts                          # Public API only
+   419→```
+   420→
+   421→### 3.5 Server Components and Client Boundaries
+   422→
+   423→Per Engineering Rules §10.4.1, all components are **React Server Components** by default. The `'use client'` directive is added only when a component uses hooks, event handlers, or browser APIs. The client boundary is placed at the feature component level — child components of a client component are automatically client components.
+   424→
+   425→| Boundary | `'use client'`? | Rationale |
+   426→|----------|-----------------|-----------|
+   427→| Root layout | No | Pure HTML shell, fonts, providers |
+   428→| Workspace shell | No | Layout structure, navigation |
+   429→| Page components | Usually No | Data fetching via `async/await` in Server Components |
+   430→| Chat input | **Yes** | Uses `useState`, `onSubmit`, keyboard events |
+   431→| Message list | **Yes** | Uses `useChatStreaming` (EventSource), scroll management |
+   432→| Agent gallery card | No | Static rendering, link via `next/link` |
+   433→| Data table (admin) | **Yes** | Sorting, filtering, pagination interactions |
+   434→| Dashboard stat card | No | Receives data as props from Server Component parent |
+   435→| Chart component | **Yes** | Canvas/SVG rendering, interactivity |
+   436→
+   437→### 3.6 RTL-First Design
+   438→
+   439→Per PRD Principles #1 and #2, the entire interface is built **RTL-first** using CSS logical properties. LTR is supported as a secondary direction. The root `<html>` element has `dir="rtl"` by default for Persian users.
+   440→
+   441→**CSS rules enforced by the engineering rules:**
+   442→- Use `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `inline-*`, `block-*` exclusively.
+   443→- Never use physical properties: `left`, `right`, `ml-*`, `mr-*`, `pl-*`, `pr-*`.
+   444→- Tailwind utility classes follow logical property mapping: `ms-4` (margin-inline-start), `me-4` (margin-inline-end).
+   445→- Dark mode is implemented by switching CSS variable values on `:root` and `[data-theme="dark"]`. Tailwind's `dark:` variant is not used.
+   446→
+   447→### 3.7 Internationalization
+   448→
+   449→| Aspect | Default | Secondary |
+   450→|--------|---------|-----------|
+   451→| Language | Persian (فارسی) | English |
+   452→| Text direction | RTL (`dir="rtl"`) | LTR (`dir="ltr"`) |
+   453→| Calendar | Solar Hijri (شمسی) | Gregorian |
+   454→| Numerals | Persian (۱۲۳) | Western Arabic (123) |
+   455→| Font | Vazirmatn (self-hosted) | Vazirmatn (same) |
+   456→| Error messages | Persian | English |
+   457→
+   458→---
+   459→
+   460→## 4. Backend Architecture
+   461→
+   462→### 4.1 Architectural Philosophy
+   463→
+   464→HotHoosh's backend is a **NestJS modular monolith** with hexagonal module boundaries (PRD Principle #15, Engineering Rules §10.4.2). The entire backend runs as a single deployable unit, but internal module boundaries are strictly enforced as if each module were a separate microservice. Modules communicate exclusively through well-defined public APIs (injected services and domain events), never through shared mutable state or direct internal imports across module boundaries.
+   465→
+   466→The modular monolith preserves the ability to extract modules into separate services in the future (v2.0+) because hexagonal boundaries ensure low coupling and high cohesion within each domain module.
+   467→
+   468→### 4.2 Technology Stack
+   469→
+   470→| Layer | Technology | Rationale |
+   471→|-------|-----------|----------|
+   472→| Runtime | Node.js 20+ LTS | Non-blocking I/O for SSE streaming and concurrent AI requests |
+   473→| Framework | NestJS 10+ | DI container, module system, guard/filter/interceptor pipeline |
+   474→| ORM | TypeORM | PostgreSQL-native, custom repository support, migration tooling |
+   475→| Database | PostgreSQL 16+ | pgvector, RLS, JSONB, partitioned tables, full-text search |
+   476→| Cache/Queue | Redis 7+ | BullMQ job queues, session store, rate limiting, caching |
+   477→| Validation | Zod | Shared schemas between frontend and backend (§10.1.3) |
+   478→| File Storage | S3-compatible (MinIO) | Document storage for knowledge bases |
+   479→| Email | Nodemailer (SMTP) | Transactional emails for invitations, password resets |
+   480→| Streaming | Server-Sent Events (SSE) | One-directional real-time AI response streaming |
+   481→
+   482→### 4.3 12 Domain Modules
+   483→
+   484→Each domain module follows hexagonal architecture: controllers define the HTTP API boundary, services encapsulate business logic, and repositories (TypeORM custom repositories) handle data access. Modules expose only their public service interface; internal implementations are private.
+   485→
+   486→| Module | Responsibility | Key Tables | Emits Events |
+   487→|--------|---------------|------------|-------------|
+   488→| **auth** | Authentication, token mgmt, invitation, 2FA, impersonation | `users`, `refresh_tokens`, `user_invitations` | `UserLoggedIn`, `UserRegistered`, `UserInvited`, `UserImpersonation` |
+   489→| **users** | User CRUD, profile, preferences, search | `users`, `workspace_users`, `roles` | `UserCreated`, `UserUpdated`, `UserDeleted` |
+   490→| **organizations** | Org lifecycle, settings, plan management | `organizations`, `subscriptions` | `OrganizationCreated`, `OrganizationSuspended` |
+   491→| **companies** | Company CRUD within organization scope | `companies` | `CompanyCreated`, `CompanyUpdated`, `CompanyDeleted` |
+   492→| **brands** | Brand CRUD with visual identity (colors, fonts, CSS) | `brands` | `BrandCreated`, `BrandUpdated` |
+   493→| **workspaces** | Workspace CRUD, members, model restrictions | `workspaces`, `workspace_users` | `WorkspaceCreated`, `WorkspaceMemberAdded` |
+   494→| **agents** | Agent lifecycle (draft → active → deprecated), bindings | `agents`, `agent_tools`, `agent_knowledge`, `agent_memory`, `tools`, `tool_parameters` | `AgentCreated`, `AgentDeployed`, `AgentDeprecated` |
+   495→| **chat** | Sessions, messages, branching, history | `chat_sessions`, `chat_messages` | `ChatSessionCreated`, `MessageSent`, `MessageReceived` |
+   496→| **knowledge** | Knowledge base CRUD, document upload, processing | `knowledge_bases`, `knowledge_documents`, `knowledge_chunks`, `knowledge_embeddings` | `KnowledgeBaseCreated`, `DocumentUploaded`, `DocumentProcessingComplete` |
+   497→| **memory** | Memory pack CRUD, versioning, diff/rollback | `memory_packs`, `memory_pack_versions` | `MemoryPackCreated`, `MemoryPackUpdated` |
+   498→| **billing** | Subscriptions, invoices, usage tracking, payments | `plans`, `subscriptions`, `invoices`, `invoice_line_items`, `transactions`, `usage_logs` | `SubscriptionCreated`, `InvoiceGenerated`, `UsageQuotaWarning`, `PaymentReceived` |
+   499→| **audit** | Audit log recording, querying, retention | `audit_logs`, `system_logs` | None (audit is a sink, not a source) |
+   500→
+   501→### 4.4 6 Engine Modules
+   502→
+   503→Engine modules provide AI/ML infrastructure consumed by domain modules. They are stateless computational units (no owned database tables, except for caching/state).
+   504→
+   505→| Engine | Responsibility | Consumed By | Key Design |
+   506→|--------|---------------|-------------|------------|
+   507→| **llm-router** | Route AI requests to optimal provider/model, health monitoring, failover | `ChatModule`, `RAGEngine` | 5-step routing pipeline, circuit breakers, Redis health cache |
+   508→| **context-engine** | Token budget allocation, context window management, priority reduction | `ChatModule` | Priority: Knowledge (40%) → History (30%) → Memory (20%) → Tools (10%) |
+   509→| **rag-engine** | Document processing pipeline, hybrid retrieval, Persian NLP | `ChatModule`, `KnowledgeModule` | HNSW + BM25 with RRF, 4 chunking strategies, Persian normalizer |
+   510→| **memory-engine** | Memory pack resolution, hierarchical assembly, injection | `ChatModule`, `ContextEngine` | Workspace → Brand → Company → Org (accumulates upward) |
+   511→| **tool-engine** | Tool registry, validation, sandboxed execution, result formatting | `ChatModule` | JSON Schema input validation, timeout enforcement, audit logging |
+   512→| **streaming-engine** | SSE connection management, event emission, backpressure | `ChatModule`, `KnowledgeModule` | 8 event types, Redis connection tracking, 50ms batch window |
+   513→
+   514→### 4.5 Domain Event System
+   515→
+   516→Modules never import each other's services directly for cross-domain operations. Instead, they emit **domain events** through an in-memory event bus backed by Redis for reliability. A **transactional outbox** pattern ensures no events are lost: events are written to the database within the same transaction as the state change, then dispatched asynchronously by a BullMQ worker.
+   517→
+   518→```
+   519→Service performs write operation
+   520→  → Opens DB transaction
+   521→  → Writes domain state change
+   522→  → Inserts outbox_events record (same transaction)
+   523→  → Commits atomically
+   524→  → BullMQ worker polls outbox
+   525→  → Dispatches to event bus
+   526→  → Handlers react asynchronously
+   527→```
+   528→
+   529→### 4.6 Authentication: Dual-Token JWT
+   530→
+   531→| Token | Algorithm | Expiry | Storage | Purpose |
+   532→|-------|-----------|-------|---------|---------|
+   533→| **Access** | RS256 (asymmetric) | 15 minutes | In-memory only | API authentication. Validated via public key — no DB lookup. |
+   534→| **Refresh** | HS256 (symmetric) | 7 days | `HttpOnly`, `Secure`, `SameSite=Strict` cookie | Session persistence. Validated via DB lookup (revocation check). |
+   535→
+   536→**Token rotation on refresh:** Every refresh invalidates the old token and issues a new one with the same `family_id`. If a previously-revoked token is presented (theft detection), all tokens in that family are revoked.
+   537→
+   538→**Password hashing:** Argon2id (memory=64MB, time=3, parallelism=4). Account lockout after 10 failed attempts within 1 hour (30-minute lockout).
+   539→
+   540→### 4.7 Authorization: Three-Layer RBAC + RLS
+   541→
+   542→| Layer | Source | Scope | Example Roles |
+   543→|-------|--------|-------|--------------|
+   544→| **Organization Role** | `roles` table (`level = 'org'`) | Organization-wide | `super_admin`, `org_admin`, `org_member` |
+   545→| **Workspace Role** | `workspace_users.role_id` | Workspace-specific | `workspace_admin`, `workspace_member`, `workspace_viewer` |
+   546→| **Resource Permissions** | `roles.permissions` JSONB | Individual resource | `agents:create`, `knowledge:delete`, `billing:read` |
+   547→
+   548→Effective permissions are the **union** of all permissions from all roles the user holds. Authorization is enforced via NestJS guards (`JwtAuthGuard → TenantScopeGuard → RolesGuard → ImpersonationGuard`).
+   549→
+   550→**PostgreSQL RLS** provides database-level tenant isolation — even if application code has a bug, RLS prevents cross-tenant data access. Session variables (`app.current_user_id`, `app.current_org_id`) are set at connection checkout.
+   551→
+   552→### 4.8 API Design
+   553→
+   554→All endpoints follow REST conventions with URL-based versioning (`/v1/`), consistent response envelopes, and pagination on all list endpoints.
+   555→
+   556→**Response envelope (success):**
+   557→```json
+   558→{ "data": { ... }, "meta": { "page": 1, "limit": 20, "total": 142, "hasMore": true } }
+   559→```
+   560→
+   561→**Response envelope (error):**
+   562→```json
+   563→{ "error": { "code": "AGENT_NOT_FOUND", "message": "عامل هوش مصنوعی یافت نشد", "details": {} } }
+   564→```
+   565→
+   566→**SSE streaming** is used for all AI responses. The endpoint `GET /v1/chats/:sessionId/stream` emits 8 event types: `token`, `message_start`, `message_delta`, `message_complete`, `tool_call`, `tool_result`, `error`, `heartbeat`.
+   567→
+   568→### 4.9 Error Handling
+   569→
+   570→Each domain module defines typed exceptions extending `DomainException`. A global `DomainExceptionFilter` catches all unhandled exceptions and returns the standardized error envelope. Raw stack traces never reach the client. Circuit breakers protect against external service failures (AI providers, S3, SMTP, embedding APIs).
+   571→
+   572→---
+   573→
+   574→## 5. Shared Layer
+   575→
+   576→### 5.1 packages/shared
+   577→
+   578→The shared package contains code that must be identical between frontend and backend to guarantee consistency. It has **zero dependencies** on React, Next.js, or NestJS.
+   579→
+   580→```
+   581→packages/shared/src/
+   582→├── types/                  # TypeScript types
+   583→│   ├── branded.ts         # Branded type definitions (UserId, AgentId, etc.)
+   584→│   ├── domain.ts          # Domain entity types (User, Agent, ChatSession, etc.)
+   585→│   ├── api.ts             # API request/response types, envelope types
+   586→│   └── events.ts          # Domain event type definitions
+   587→├── validators/             # Shared Zod schemas
+   588→│   ├── auth.schema.ts     # login, register, refresh, 2fa
+   589→│   ├── user.schema.ts     # create, update, preferences
+   590→│   ├── agent.schema.ts    # create, update, deploy
+   591→│   ├── chat.schema.ts     # create-session, send-message
+   592→│   ├── knowledge.schema.ts # create-kb, upload-document
+   593→│   └── pagination.schema.ts # page, limit, sort, cursor
+   594→├── constants/              # Shared constants
+   595→│   ├── limits.const.ts    # MAX_FILE_SIZE, MAX_RETRY, TOKEN_BUDGET_PERCENTAGES
+   596→│   ├── status.const.ts    # AgentStatus, DocumentProcessingStatus, etc.
+   597→│   └── routes.const.ts    # API route path constants
+   598→├── utils/                  # Pure utility functions
+   599→│   ├── date.ts            # formatPersianDate, toJalaali, etc.
+   600→│   ├── string.ts          # truncate, slugify, normalizePersian
+   601→│   └── number.ts          # formatPersianNumeral, formatCurrency
+   602→└── index.ts                # Public exports
+   603→```
+   604→
+   605→**What goes in `packages/shared`:**
+   606→- Branded types that prevent accidental ID misuse (`type UserId = string & { readonly __brand: 'UserId' }`)
+   607→- Zod validation schemas used on both client and server
+   608→- Domain type definitions shared across apps
+   609→- Constants (status values, limits, route paths)
+   610→- Pure utility functions (date formatting, string manipulation, number formatting)
+   611→
+   612→**What does NOT go in `packages/shared`:**
+   613→- React components (those go in `packages/ui`)
+   614→- API client code (each app has its own)
+   615→- State management (Zustand stores are app-specific)
+   616→- Backend services or NestJS modules
+   617→- Anything with external dependencies beyond `zod`, `dayjs`
+   618→
+   619→### 5.2 packages/ui
+   620→
+   621→The UI package is a React component library built on shadcn/ui primitives. It provides reusable, accessible components used by both `apps/web` and `apps/admin`.
+   622→
+   623→```
+   624→packages/ui/src/
+   625→├── components/              # One directory per component
+   626→│   ├── button/
+   627→│   │   ├── button.tsx
+   628→│   │   ├── button.test.tsx
+   629→│   │   └── index.ts
+   630→│   ├── input/
+   631→│   ├── dialog/
+   632→│   ├── dropdown-menu/
+   633→│   ├── data-table/         # Admin-grade data table with sorting, filtering, pagination
+   634→│   ├── toast/
+   635→│   ├── skeleton/
+   636→│   ├── badge/
+   637→│   └── ... (40+ components)
+   638→├── hooks/                   # Shared UI hooks
+   639→│   ├── use-media-query.ts
+   640→│   ├── use-debounce.ts
+   641→│   └── use-copy-to-clipboard.ts
+   642→├── primitives/              # Low-level primitives from Radix UI
+   643→│   └── slot.tsx
+   644→├── lib/                     # Component utility functions
+   645→│   └── utils.ts             # cn() helper, etc.
+   646→└── index.ts                 # Public exports only
+   647→```
+   648→
+   649→**Design system rules:**
+   650→- Components use Tailwind utility classes for layout and spacing.
+   651→- Colors, shadows, and effects use CSS custom properties (design tokens) via `var(--color-accent)`.
+   652→- Dark mode is handled by CSS variable switching, not Tailwind's `dark:` variant.
+   653→- All components are RTL-compatible via logical properties by default.
+   654→- All components meet WCAG 2.2 AA accessibility standards.
+   655→
+   656→---
+   657→
+   658→## 6. Data Flow
+   659→
+   660→### 6.1 Flow A: User Sends Chat Message → AI Responds
+   661→
+   662→```
+   663→  Browser                Next.js SSR / Client          NestJS API              Engines              External
+   664→    │                         │                          │                      │                    │
+   665→    │  1. Type message +       │                          │                      │                    │
+   666→    │     click Send           │                          │                      │                    │
+   667→    │────────────────────────>│                          │                      │                    │
+   668→    │                         │  2. POST /v1/chats/      │                      │                    │
+   669→    │                         │     :sessionId/messages  │                      │                    │
+   670→    │                         │  { content,              │                      │                    │
+   671→    │                         │    parentMessageId? }   │                      │                    │
+   672→    │                         │─────────────────────────>│                      │                    │
+   673→    │                         │                          │                      │                    │
+   674→    │                         │                          │  3. Guards validate    │                    │
+   675→    │                         │                          │     JWT + workspace    │                    │
+   676→    │                         │                          │     access + perms     │                    │
+   677→    │                         │                          │                      │                    │
+   678→    │                         │                          │  4. Persist user msg   │                    │
+   679→    │                         │                          │     (chat_messages)    │                    │
+   680→    │                         │                          │                      │                    │
+   681→    │                         │                          │  5. Context Engine:    │                    │
+   682→    │                         │                          │     resolve memory      │                    │
+   683→    │                         │                          │     retrieve knowledge  │                    │
+   684→    │                         │                          │     load history        │                    │
+   685→    │                         │                          │     load tool defs      │                    │
+   686→    │                         │                          │     allocate budget     │                    │
+   687→    │                         │                          │──────────────────────>│                    │
+   688→    │                         │                          │                      │                    │
+   689→    │                         │                          │  6. LLM Router:        │                    │
+   690→    │                         │                          │     5-step routing     │                    │
+   691→    │                         │                          │──────────────────────>│                    │
+   692→    │                         │                          │                      │  7. Route to AI     │
+   693→    │                         │                          │                      │     provider          │
+   694→    │                         │                          │                      │───────────────────>│
+   695→    │                         │                          │                      │                    │
+   696→    │  8. Open SSE conn      │                          │                      │  9. Stream tokens   │
+   697→    │  GET /chats/:id/stream│                          │                      │<───────────────────│
+   698→    │<──────────────────────────────────────────────────│                      │                    │
+   699→    │                         │                          │  10. Streaming Engine  │                    │
+   700→    │                         │                          │      batches tokens    │                    │
+   701→    │                         │                          │      (50ms window)     │                    │
+   702→    │                         │                          │                      │                    │
+   703→    │  11. SSE: message_start│                          │                      │                    │
+   704→    │<──────────────────────────────────────────────────│                      │                    │
+   705→    │  12. SSE: token/message_delta (repeated)          │                      │                    │
+   706→    │<──────────────────────────────────────────────────│                      │                    │
+   707→    │                         │                          │                      │                    │
+   708→    │                         │                          │  [Optional: tool call │                    │
+   709→    │                         │                          │   loop — up to 5x]    │                    │
+   710→    │                         │                          │                      │                    │
+   711→    │  13. SSE: message_complete                         │                      │                    │
+   712→    │      { inputTokens,    │                          │                      │                    │
+   713→    │        outputTokens,   │                          │                      │                    │
+   714→    │        latencyMs }     │                          │                      │                    │
+   715→    │<──────────────────────────────────────────────────│                      │                    │
+   716→    │                         │                          │                      │                    │
+   717→    │                         │                          │  14. Update assistant  │                    │
+   718→    │                         │                          │      msg in DB         │                    │
+   719→    │                         │                          │  15. Emit events:      │                    │
+   720→    │                         │                          │      MessageSent       │                    │
+   721→    │                         │                          │      MessageReceived   │                    │
+   722→    │                         │                          │      → billing tracks  │                    │
+   723→    │                         │                          │        usage           │                    │
+   724→```
+   725→
+   726→### 6.2 Flow B: Admin Creates Organization
+   727→
+   728→```
+   729→  Admin Browser          NestJS API                   PostgreSQL
+   730→      │                       │                            │
+   731→      │  1. Fill org form      │                            │
+   732→      │     (name, slug, plan) │                            │
+   733→      │  2. Click Create       │                            │
+   734→      │                       │                            │
+   735→      │  3. POST /v1/          │                            │
+   736→      │     organizations      │                            │
+   737→      │     { name, slug,      │                            │
+   738→      │       planId }          │                            │
+   739→      │──────────────────────>│                            │
+   740→      │                       │                            │
+   741→      │                       │  4. Zod validates DTO     │
+   742→      │                       │  5. Guards check          │
+   743→      │                       │     super_admin role      │
+   744→      │                       │                            │
+   745→      │                       │  6. Check plan limits     │
+   746→      │                       │     (max orgs for sys)     │
+   747→      │                       │───────────────────────────>│
+   748→      │                       │  7. INSERT organization    │
+   749→      │                       │     (UUID v7 PK)           │
+   750→      │                       │<───────────────────────────│
+   751→      │                       │                            │
+   752→      │                       │  8. INSERT subscription    │
+   753→      │                       │     (link org → plan)      │
+   754→      │                       │───────────────────────────>│
+   755→      │                       │<───────────────────────────│
+   756→      │                       │                            │
+   757→      │                       │  9. Emit Organization-    │
+   758→      │                       │     CreatedEvent          │
+   759→      │                       │     → AuditModule logs    │
+   760→      │                       │     → BillingModule sets  │
+   761→      │                       │       up subscription     │
+   762→      │                       │                            │
+   763→      │  10. 201 { data: {     │                            │
+   764→      │       id, name, slug, │                            │
+   765→      │       status, ... } } │                            │
+   766→      │<──────────────────────│                            │
+   767→```
+   768→
+   769→### 6.3 Flow C: User Uploads Document to Knowledge Base
+   770→
+   771→```
+   772→  Browser              NestJS API               BullMQ              S3 / PostgreSQL
+   773→     │                      │                       │                      │
+   774→     │  1. Select file,      │                       │                      │
+   775→     │     choose KB         │                       │                      │
+   776→     │  2. Upload            │                       │                      │
+   777→     │                      │                       │                      │
+   778→     │  3. POST /v1/         │                       │                      │
+   779→     │     knowledge-bases/  │                       │                      │
+   780→     │     :kbId/documents   │                       │                      │
+   781→     │     (multipart/form) │                       │                      │
+   782→     │─────────────────────>│                       │                      │
+   783→     │                      │                       │                      │
+   784→     │                      │  4. Validate file      │                      │
+   785→     │                      │     (magic bytes,       │                      │
+   786→     │                      │      size ≤ 50MB)      │                      │
+   787→     │                      │                       │                      │
+   788→     │                      │  5. Compute SHA-256    │                       │
+   789→     │                      │     content_hash        │                       │
+   790→     │                      │  6. Check dedup         │                       │
+   791→     │                      │──────────────────────────────────────────────>│
+   792→     │                      │                       │                      │
+   793→     │                      │  7. Upload to S3:      │                      │
+   794→     │                      │     knowledge/{wsId}/   │                      │
+   795→     │                      │     {kbId}/{uuid}/file  │                      │
+   796→     │                      │──────────────────────────────────────────────>│
+   797→     │                      │                       │         S3 stored  │
+   798→     │                      │<──────────────────────────────────────────────│
+   799→     │                      │                       │                      │
+   800→     │                      │  8. INSERT knowledge_  │                      │
+   801→     │                      │     documents           │                      │
+   802→     │                      │     (status='uploaded') │                      │
+   803→     │                      │──────────────────────────────────────────────>│
+   804→     │                      │                       │                      │
+   805→     │                      │  9. Enqueue job:       │                      │
+   806→     │                      │     'document-         │                      │
+   807→     │                      │      processing'       │                      │
+   808→     │                      │──────────────────────>│                      │
+   809→     │                      │                       │                      │
+   810→     │  10. 201 { document   │                      │                      │
+   811→     │       id, status,     │                      │                      │
+   812→     │       processingStatus│                      │                      │
+   813→     │       = 'uploaded' }  │                       │                      │
+   814→     │<─────────────────────│                       │                      │
+   815→     │                      │                       │                      │
+   816→     │  11. Open SSE for     │                       │                      │
+   817→     │     upload progress  │                       │                      │
+   818→     │<─────────────────────│                       │                      │
+   819→     │                      │                       │  12. Worker dequeues │
+   820→     │                      │                       │─────────────────────>│
+   821→     │                      │                       │                      │
+   822→     │                      │                       │  13. Extract text    │
+   823→     │                      │                       │      (PDF/DOCX/TXT)  │
+   824→     │                      │                       │  14. Normalize       │
+   825→     │                      │                       │      (Persian NLP)   │
+   826→     │                      │                       │  15. Chunk           │
+   827→     │                      │                       │      (4 strategies)   │
+   828→     │                      │                       │  16. Embed           │
+   829→     │                      │                       │      (via LLM Router) │
+   830→     │                      │                       │  17. Index           │
+   831→     │                      │                       │      (HNSW + FTS)     │
+   832→     │                      │                       │─────────────────────>│
+   833→     │                      │                       │                      │
+   834→     │  18. SSE: progress    │                       │                      │
+   835→     │     events            │                       │                      │
+   836→     │     (extracting →     │                       │                      │
+   837→     │      chunking →       │                       │                      │
+   838→     │      embedding →       │                       │                      │
+   839→     │      ready)           │                       │                      │
+   840→     │<─────────────────────│                       │                      │
+   841→```
+   842→
+   843→### 6.4 Flow D: Token Refresh
+   844→
+   845→```
+   846→  Browser                NestJS API                   Redis              PostgreSQL
+   847→    │                         │                            │                    │
+   848→    │  1. API call returns    │                            │                    │
+   849→    │     401 TOKEN_EXPIRED    │                            │                    │
+   850→    │<────────────────────────│                            │                    │
+   851→    │                         │                            │                    │
+   852→    │  2. Detect expired      │                            │                    │
+   853→    │     access token        │                            │                    │
+   854→    │                         │                            │                    │
+   855→    │  3. POST /v1/auth/       │                            │                    │
+   856→    │     refresh             │                            │                    │
+   857→    │  (no body — refresh     │                            │                    │
+   858→    │   token in HttpOnly     │                            │                    │
+   859→    │   cookie)               │                            │                    │
+   860→    │────────────────────────>│                            │                    │
+   861→    │                         │                            │                    │
+   862→    │                         │  4. Read refresh token    │                    │
+   863→    │                         │     from cookie           │                    │
+   864→    │                         │  5. Verify HS256          │                    │
+   865→    │                         │     signature             │                    │
+   866→    │                         │  6. Extract userId,       │                    │
+   867→    │                         │     familyId              │                    │
+   868→    │                         │                            │                    │
+   869→    │                         │  7. Lookup token hash     │                    │
+   870→    │                         │     in DB                 │                    │
+   871→    │                         │──────────────────────────────────────────────>│
+   872→    │                         │                            │                    │
+   873→    │                         │  8. Check:                │                    │
+   874→    │                         │     expires_at > NOW()?   │                    │
+   875→    │                         │     revoked_at IS NULL?   │                    │
+   876→    │                         │                            │                    │
+   877→    │                         │  9. [THEFT CHECK]         │                    │
+   878→    │                         │     Is token already      │                    │
+   879→    │                         │     revoked but same       │                    │
+   880→    │                         │     family? If yes →      │                    │
+   881→    │                         │     revoke ALL family     │                    │
+   882→    │                         │     tokens → 401          │                    │
+   883→    │                         │                            │                    │
+   884→    │                         │  10. Revoke old token     │                    │
+   885→    │                         │      (set revoked_at)     │                    │
+   886→    │                         │──────────────────────────────────────────────>│
+   887→    │                         │                            │                    │
+   888→    │                         │  11. Generate new HS256   │                    │
+   889→    │                         │      refresh token         │                    │
+   890→    │                         │  12. Store new token      │                    │
+   891→    │                         │      hash in DB           │                    │
+   892→    │                         │──────────────────────────────────────────────>│
+   893→    │                         │                            │                    │
+   894→    │                         │  13. Generate new RS256    │                    │
+   895→    │                         │      access token          │                    │
+   896→    │                         │      (15min expiry)        │                    │
+   897→    │                         │                            │                    │
+   898→    │  14. 200 { accessToken } │                            │                    │
+   899→    │  Set-Cookie: new        │                            │                    │
+   900→    │    refresh_token         │                            │                    │
+   901→    │    (HttpOnly, Secure,    │                            │                    │
+   902→    │     SameSite=Strict)     │                            │                    │
+   903→    │<────────────────────────│                            │                    │
+   904→    │                         │                            │                    │
+   905→    │  15. Retry original      │                            │                    │
+   906→    │     API call with new    │                            │                    │
+   907→    │     access token         │                            │                    │
+   908→    │────────────────────────>│                            │                    │
+   909→```
+   910→
+   911→---
+   912→
+   913→## 7. Infrastructure
+   914→
+   915→### 7.1 PostgreSQL 16+
+   916→
+   917→PostgreSQL is the sole data store, chosen for its rich feature set that eliminates the need for multiple specialized databases.
+   918→
+   919→| Feature | Implementation | Purpose |
+   920→|---------|---------------|---------|
+   921→| **pgvector** (0.7+) | HNSW index with cosine similarity | Vector embeddings for RAG — 10M+ vectors |
+   922→| **Row-Level Security** | Session variable-based policies | Tenant isolation at DB level |
+   923→| **JSONB** | GIN indexes via `btree_gin` | Flexible settings, permissions, tool schemas |
+   924→| **Full-Text Search** | `to_tsvector('persian', ...)` with GIN | BM25 retrieval for hybrid RAG search |
+   925→| **pg_trgm** | Trigram GIN indexes | Fuzzy text search |
+   926→| **Partitioning** | Monthly range on `usage_logs`, `audit_logs`, `chat_messages` | Query performance on high-volume tables |
+   927→| **UUID v7** | Custom `uuid_generate_v7()` function | Time-sortable globally unique PKs |
+   928→| **BIGINT PKs** | Auto-increment on append-only tables | Maximum insert throughput for logs/messages |
+   929→
+   930→**Connection pooling:** PgBouncer in transaction mode for high-concurrency scenarios. Pool size configurable (default: 20 connections). Connection initialization callback sets RLS session variables.
+   931→
+   932→### 7.2 Redis 7+
+   933→
+   934→Redis serves six distinct roles in the HotHoosh architecture:
+   935→
+   936→| Role | Data Type | TTL | Key Pattern Example |
+   937→|------|-----------|-----|-------------------|
+   938→| **BullMQ backing store** | Lists, hashes, sets | Job-dependent | `bull:document-processing:*` |
+   939→| **SSE connection tracking** | Hash | 30 min | `sse:connections:{sessionId}` |
+   940→| **Rate limiting** | String (sliding window) | Window-dependent | `ratelimit:{userId}:{endpoint}` |
+   941→| **Session lockout** | String (counter) | 1 hour | `lockout:{userId}:attempts` |
+   942→| **Event outbox pointer** | String | Persistent | `outbox:lastProcessedId` |
+   943→| **Provider health cache** | Hash | 30 seconds | `health:{providerId}` |
+   944→| **Config cache** | Hash | 5 minutes | `cache:config:{scope}:{key}` |
+   945→| **Token family tracking** | String (set) | 7 days | `family:{familyId}:tokens` |
+   946→| **Password reset tokens** | String | 1 hour | `reset:{email}` |
+   947→| **Idempotency keys** | String | 24 hours | `idempotency:{key}` |
+   948→
+   949→Configured with `maxmemory-policy: allkeys-lru`. Connection pooling enabled (max 20 connections).
+   950→
+   951→### 7.3 S3-Compatible Storage
+   952→
+   953→Used for all file storage. MinIO for self-hosted deployments; AWS S3 for cloud deployments. All uploads use server-side encryption (AES-256). Pre-signed URLs for client-side downloads (15-minute expiry).
+   954→
+   955→| Operation | Key Pattern | Max Size | Validation |
+   956→|-----------|-------------|----------|------------|
+   957→| Document upload | `knowledge/{wsId}/{kbId}/{uuid}/{filename}` | 50 MB | Magic bytes, content scan |
+   958→| Avatar upload | `avatars/{userId}/{uuid}.{ext}` | 5 MB | Image magic bytes |
+   959→| Logo upload | `logos/{entityType}/{entityId}/{uuid}.{ext}` | 5 MB | Image magic bytes |
+   960→| Exports/Backups | `backups/{type}/{date}/{filename}` | Variable | N/A |
+   961→
+   962→### 7.4 BullMQ Queue System
+   963→
+   964→11 queues handle all asynchronous processing. No long-running operations run in request handlers.
+   965→
+   966→| # | Queue | Purpose | Priority | Concurrency |
+   967→|---|-------|---------|----------|-------------|
+   968→| 1 | `document-processing` | Knowledge document pipeline (extract → chunk → embed → index) | Low | 5 |
+   969→| 2 | `embedding-generation` | Batch embedding for chunks | Low | 3 |
+   970→| 3 | `vector-indexing` | Bulk vector index updates | Low | 2 |
+   971→| 4 | `health-check` | AI provider health monitoring (every 30s) | Critical | 3 |
+   972→| 5 | `email-sending` | Transactional emails | Medium | 10 |
+   973→| 6 | `usage-aggregation` | Hourly usage metric aggregation | Medium | 2 |
+   974→| 7 | `audit-log-purge` | Daily expired audit log cleanup | Low | 1 |
+   975→| 8 | `token-cleanup` | Daily expired refresh token purge | Low | 1 |
+   976→| 9 | `system-log-purge` | Daily old system log partition drop | Low | 1 |
+   977→| 10 | `invoice-generation` | Monthly automated invoice generation | High | 2 |
+   978→| 11 | `notification-delivery` | In-app notification creation/delivery | Medium | 5 |
+   979→
+   980→**Retry policy:** 3 attempts with exponential backoff (2s → 4s → 8s). Keeps last 1000 completed and 5000 failed jobs.
+   981→
+   982→### 7.5 SMTP (Email)
+   983→
+   984→Transactional emails sent via Nodemailer with SMTP. Templates stored in the `email_templates` table, rendered with Handlebars. All emails dispatched asynchronously via the `email-sending` queue.
+   985→
+   986→| Email Type | Trigger |
+   987→|-----------|--------|
+   988→| Invitation | Admin creates invitation |
+   989→| Welcome | User completes registration |
+   990→| Password Reset | User requests reset |
+   991→| Account Lockout | 10 failed login attempts |
+   992→| Quota Warning | Usage exceeds 80% of budget |
+   993→
+   994→### 7.6 Container Readiness
+   995→
+   996→HotHoosh is container-ready but not tied to any specific cloud provider. The architecture supports:
+   997→
+   998→- **Docker Compose** for local development (PostgreSQL, Redis, MinIO, SMTP mock)
+   999→- **Kubernetes** for production (Deployments, Services, ConfigMaps, Secrets, HPA)
+  1000→- **Bare metal** for on-premise Iranian enterprise deployments
+  1001→
+  1002→No cloud-specific services (AWS Lambda, GCP Cloud Run, etc.) are required.
+  1003→
+  1004→### 7.7 Monitoring and Alerting
+  1005→
+  1006→| Concern | Approach |
+  1007→|---------|----------|
+  1008→| **Application health** | `/health` endpoint (DB + Redis connectivity check) |
+  1009→| **System logs** | Structured JSON logging via NestJS Logger, streamed to admin via SSE |
+  1010→| **AI provider health** | Redis-backed health tracking with 30-second resolution, circuit breakers |
+  1011→| **Error tracking** | Sentry (or equivalent) for unhandled exception aggregation |
+  1012→| **Performance metrics** | Response time histograms (P50/P95/P99), tracked per endpoint |
+  1013→| **Core Web Vitals** | LCP, FID, CLS, INP monitored in production, alerted on breach |
+  1014→| **Database** | Slow query logging (>500ms), weekly review, auto-vacuum tuning |
+  1015→| **Queue health** | BullMQ dashboard for job counts, failure rates, processing times |
+  1016→| **Uptime** | 99.9% Enterprise, 99.5% Pro — monitored via external health checks |
+  1017→| **Alerting channels** | In-app notifications, email, optional webhook integration |
+  1018→
+  1019→---
+  1020→
+  1021→## 8. Key Design Decisions
+  1022→
+  1023→### DD-01: Modular Monolith, Not Microservices
+  1024→
+  1025→**Decision:** Build the backend as a single NestJS application with strict hexagonal module boundaries, not as a set of independent microservices.
+  1026→
+  1027→**Rationale:**
+  1028→
+  1029→| Factor | Modular Monolith | Microservices |
+  1030→|--------|-----------------|---------------|
+  1031→| Development velocity | Single codebase, single build, single deploy | Multiple codebases, independent builds |
+  1032→| Data consistency | Single PostgreSQL transaction spans all modules | Distributed transactions (Saga) or eventual consistency |
+  1033→| Team size fit | 3–8 developers (current phase) | Requires 10+ for independent service ownership |
+  1034→| Latency | In-process communication (nanoseconds) | Network communication (milliseconds) |
+  1035→| Operational cost | Single process to monitor and debug | Service mesh, load balancing, distributed tracing |
+  1036→
+  1037→Hexagonal boundaries ensure that any module can be extracted into a separate service in v2.0+ with minimal refactoring. The modular monolith gives us microservice-level discipline without microservice-level operational tax.
+  1038→
+  1039→### DD-02: PostgreSQL, Not MongoDB
+  1040→
+  1041→**Decision:** Use PostgreSQL 16+ as the sole data store.
+  1042→
+  1043→**Rationale:** HotHoosh requires ACID transactions (billing, token accounting), relational data (Org → Company → Brand → Workspace hierarchy), full-text search (BM25 for RAG), vector search (pgvector for embeddings), and row-level security (tenant isolation). PostgreSQL provides all of these in a single database, eliminating the operational complexity of maintaining MongoDB + a vector DB + a relational DB. JSONB columns provide schema flexibility where needed (settings, permissions, tool schemas).
+  1044→
+  1045→### DD-03: pgvector, Not Dedicated Vector DB (Initially)
+  1046→
+  1047→**Decision:** Use pgvector for vector storage and HNSW indexing. Do not introduce Pinecone, Qdrant, or Weaviate in v1.0.
+  1048→
+  1049→**Rationale:** pgvector with HNSW indexes achieves < 150ms P95 latency for 10M+ vectors, which meets our requirements. Adding a dedicated vector DB introduces operational complexity, data synchronization challenges, and cost. The PRD explicitly defers dedicated vector DB to v2.0 if scale demands it. PostgreSQL's advantage is that vector queries can join with relational data (e.g., filter by `knowledge_base_id` and `workspace_id` within the same query).
+  1050→
+  1051→### DD-04: Dual-Token JWT, Not Single Token or Session
+  1052→
+  1053→**Decision:** Use two separate JWTs: RS256 access token (15min, in-memory) + HS256 refresh token (7d, HttpOnly cookie).
+  1054→
+  1055→**Rationale:**
+  1056→
+  1057→| Approach | Security | Performance | Complexity |
+  1058→|----------|----------|-------------|------------|
+  1059→| Single long-lived JWT | Low — compromised token valid for days | High — no refresh needed | Low |
+  1060→| Server-side sessions | High — instant revocation | Low — DB lookup on every request | Medium |
+  1061→| **Dual-token JWT** | **High** — short-lived access, rotation detects theft | **High** — access token validated without DB | **Medium** |
+  1062→
+  1063→RS256 for access tokens means validation requires only the public key (no DB lookup). HS256 for refresh tokens means revocation requires the shared secret + DB check. The rotation mechanism provides theft detection: if a previously-revoked token is presented, all sessions are terminated.
+  1064→
+  1065→### DD-05: UUID v7, Not UUID v4
+  1066→
+  1067→**Decision:** Use UUID v7 (time-sortable) as the default primary key for all entities.
+  1068→
+  1069→**Rationale:** UUID v7 combines a Unix timestamp (millisecond precision) with random bytes. This produces IDs that are globally unique (no coordination) and time-sortable (recent entities have higher IDs), which benefits B-tree index performance on append-heavy tables. UUID v4 is random, causing index fragmentation on time-ordered data. For high-throughput append-only tables (audit_logs, chat_messages, usage_logs), BIGINT auto-increment is used instead to avoid UUID storage overhead.
+  1070→
+  1071→### DD-06: Immutable Chat Messages
+  1072→
+  1073→**Decision:** Chat messages are never updated in place. Edits create new messages. Branching uses `parent_message_id` + `branch_index`.
+  1074→
+  1075→**Rationale:** Immutability eliminates an entire class of bugs (concurrent edits, lost updates, audit trail corruption). Branching enables exploring different AI response directions without losing the original thread. The `parent_message_id` + `branch_index` model reconstructs conversation history by walking up the tree. This design also simplifies billing (each message has a definitive token count that never changes) and audit logging (a complete, tamper-proof record of every interaction).
+  1076→
+  1077→### DD-07: Zod, Not class-validator
+  1078→
+  1079→**Decision:** Use Zod schemas for all input validation on both frontend and backend.
+  1080→
+  1081→**Rationale:** Zod schemas can be shared between frontend and backend via `packages/shared`, guaranteeing that the same validation rules apply on both sides. `class-validator` uses decorators and classes, which cannot be shared with a React frontend. Zod also provides superior TypeScript inference (`z.infer<typeof schema>`) and composable schema building (`.pick()`, `.omit()`, `.partial()`, `.merge()`).
+  1082→
+  1083→### DD-08: NestJS, Not Express or Fastify
+  1084→
+  1085→**Decision:** Build the backend API with NestJS.
+  1086→
+  1087→**Rationale:** NestJS provides a built-in DI container, module system, and guard/filter/interceptor pipeline that directly map to our hexagonal architecture requirements. Express requires manual assembly of middleware chains and has no DI or module system. Fastify is performant but lacks NestJS's structured module system. NestJS's decorators (`@Controller`, `@Get`, `@UseGuards`) provide declarative API definitions that align with our engineering rules (thin controllers, guard-based authorization).
+  1088→
+  1089→### DD-09: App Router, Not Pages Router
+  1090→
+  1091→**Decision:** Use Next.js App Router (`app/` directory) exclusively.
+  1092→
+  1093→**Rationale:** The App Router supports React Server Components, which allow page-level data fetching via `async/await` without client-side JavaScript. This reduces the client-side JavaScript bundle and improves Core Web Vitals (especially LCP and FID). Server Components are the default; the `'use client'` directive is added only where needed. The Pages Router does not support Server Components and is considered legacy by Next.js.
+  1094→
+  1095→### DD-10: Zustand, Not Redux
+  1096→
+  1097→**Decision:** Use Zustand for client-side state management.
+  1098→
+  1099→**Rationale:**
+  1100→
+  1101→| Factor | Zustand | Redux Toolkit |
+  1102→|--------|---------|---------------|
+  1103→| Boilerplate | Minimal — no actions, reducers, providers | Significant — slice, asyncThunk, configureStore |
+  1104→| Bundle size | ~1 KB | ~11 KB |
+  1105→| Learning curve | Low — hooks-based API | Medium — requires understanding thunks, selectors |
+  1106→| TypeScript | First-class, simple | Good but verbose |
+  1107→
+  1108→Zustand's minimal API reduces boilerplate while providing the same capabilities (selectors, middleware for persistence, devtools integration). Since TanStack Query handles all server state, Zustand only manages simple UI state (theme, sidebar, selection), where its simplicity is a perfect fit.
+  1109→
+  1110→### DD-11: Feature-Based Folders, Not Type-Based
+  1111→
+  1112→**Decision:** Organize frontend code by feature (`features/chat/`), not by type (`components/`, `hooks/`, `stores/`).
+  1113→
+  1114→**Rationale:** Feature-based organization ensures that all code related to a domain concept lives in one place. A feature is self-contained and deletable — removing the `features/chat/` directory removes chat without affecting agents or knowledge. Type-based organization scatters related code across multiple directories, making it harder to understand, modify, and delete features. The engineering rules enforce this with the principle: "A feature must be deletable without affecting other features."
+  1115→
+  1116→### DD-12: CSS Logical Properties, Not Physical Properties
+  1117→
+  1118→**Decision:** Use `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*` exclusively. Never use `left`, `right`, `ml-*`, `mr-*`.
+  1119→
+  1120→**Rationale:** HotHoosh is Persian-first and RTL-native. CSS logical properties automatically adapt to the document's `dir` attribute. When `dir="rtl"`, `margin-inline-start` maps to `margin-right`; when `dir="ltr"`, it maps to `margin-left`. Physical properties (`margin-left`) require manual RTL/LTR conditionals in every component. Logical properties make bidirectional support automatic and eliminates an entire class of RTL bugs.
+  1121→
+  1122→### DD-13: Solar Hijri Calendar
+  1123→
+  1124→**Decision:** Use Solar Hijri (شمسی) as the default calendar. Gregorian available as secondary.
+  1125→
+  1126→**Rationale:** HotHoosh targets Iranian enterprises. The Solar Hijri calendar is the official calendar of Iran, used for business operations, financial reporting, and legal documents. Displaying Gregorian dates as the default would be a localization failure. Day.js with the `jalaali-js` plugin provides Solar Hijri support with the same API as standard date handling.
+  1127→
+  1128→### DD-14: SSE, Not WebSocket for AI Streaming
+  1129→
+  1130→**Decision:** Use Server-Sent Events (`text/event-stream`) for all AI response streaming.
+  1131→
+  1132→**Rationale:**
+  1133→
+  1134→| Factor | SSE | WebSocket |
+  1135→|--------|-----|-----------|
+  1136→| Direction | Server → Client (unidirectional) | Bidirectional |
+  1137→| Complexity | Simple — built on HTTP | Complex — handshake, framing, ping/pong |
+  1138→| Proxy compatibility | Works through all proxies, CDNs, load balancers | Requires special proxy configuration (Upgrade header) |
+  1139→| Reconnection | Browser auto-reconnects | Manual reconnection logic |
+  1140→| HotHoosh need | Server pushes AI tokens to client | Client only sends messages via POST |
+  1141→
+  1142→AI response streaming is inherently unidirectional: the server generates tokens and the client displays them. The client sends messages via standard `POST` requests. There is no need for bidirectional communication. SSE is simpler, more robust, and works through all network infrastructure without special configuration.
+  1143→
+  1144→### DD-15: TypeORM, Not Prisma
+  1145→
+  1146→**Decision:** Use TypeORM as the ORM for NestJS.
+  1147→
+  1148→**Rationale:** TypeORM provides native PostgreSQL support including custom repository classes (essential for the repository pattern mandated by Engineering Rules §10.4.2), direct access to migration tooling, and fine-grained query control needed for complex operations (recursive CTEs for branch traversal, JSONB queries, pgvector operations). While Prisma offers a cleaner query API, TypeORM's custom repository support better aligns with our hexagonal architecture where repositories are the data access boundary.
+  1149→
+  1150→### DD-16: Invitation-Only Registration
+  1151→
+  1152→**Decision:** Users cannot self-register. All access is via organization invitation.
+  1153→
+  1154→**Rationale:** HotHoosh is an enterprise product, not a consumer SaaS. Open registration creates security risks (unauthorized access, spam accounts) and administrative burden. Invitation-only registration ensures that every user is explicitly authorized by an organization admin, tied to a specific role and organizational scope. This aligns with enterprise security requirements and Iranian enterprise governance practices.
+  1155→
+  1156→### DD-17: Hybrid Search (Vector + BM25), Not Vector Only
+  1157→
+  1158→**Decision:** Combine pgvector HNSW cosine similarity with PostgreSQL BM25 full-text search using Reciprocal Rank Fusion.
+  1159→
+  1160→**Rationale:** Vector search excels at semantic similarity but misses exact keyword matches. BM25 excels at keyword matching but misses semantic relationships. Hybrid search with RRF (k=60) combines the strengths of both. For Persian text specifically, exact keyword matching is critical because Persian morphology (prefixes, suffixes, zero-width non-joiners) can cause vector embeddings to miss matches that a full-text search catches easily.
+  1161→
+  1162→### DD-18: Bigint Auto-Increment for High-Throughput Tables
+  1163→
+  1164→**Decision:** Use BIGINT auto-increment (not UUID v7) for `audit_logs`, `usage_logs`, `chat_messages`, and `system_logs`.
+  1165→
+  1166→**Rationale:** UUID v7 is 128 bits (16 bytes) vs BIGINT which is 64 bits (8 bytes). On append-only tables that receive millions of inserts per month, halving the primary key size significantly reduces storage and index size. BIGINT auto-increment also provides optimal B-tree insert performance (sequential, no page splits). UUID v7 is used for all other tables where the benefits of global uniqueness and time-sortability outweigh the storage cost.
+  1167→
+  1168→---
+  1169→
+  1170→## Appendix A: Technology Version Summary
+  1171→
+  1172→| Technology | Minimum Version | Notes |
+  1173→|-----------|----------------|-------|
+  1174→| Node.js | 20 LTS | Runtime for all apps and API |
+  1175→| TypeScript | 5.x | Strict mode with additional checks |
+  1176→| Next.js | 15+ | App Router only |
+  1177→| NestJS | 10+ | Modular monolith |
+  1178→| TypeORM | 0.3+ | PostgreSQL driver |
+  1179→| PostgreSQL | 16+ | With pgvector, pg_trgm, btree_gin |
+  1180→| Redis | 7+ | BullMQ backing store, caching, sessions |
+  1181→| Tailwind CSS | 4.x | RTL logical properties |
+  1182→| React | 19.x | Server Components + Client Components |
+  1183→| Zustand | 5.x | Client state management |
+  1184→| TanStack Query | 5.x | Server state management |
+  1185→| React Hook Form | 7.x | Form state management |
+  1186→| Zod | 3.x | Shared validation |
+  1187→| Turborepo | 2.x | Monorepo task orchestration |
+  1188→| pnpm | 9.x | Package manager |
+  1189→
+  1190→## Appendix B: Document Cross-References
+  1191→
+  1192→| Document | Relevance |
+  1193→|----------|----------|
+  1194→| [PRD.md](./PRD.md) | Product requirements, principles, functional/non-functional requirements |
+  1195→| [Database.md](./Database.md) | Complete schema specification, indexes, RLS policies |
+  1196→| [Backend-Architecture.md](./Backend-Architecture.md) | Detailed backend module specs, LLM Router, RAG Engine, streaming |
+  1197→| [Agent-System.md](./Agent-System.md) | Agent types, lifecycle, prompt builder, conversation flow |
+  1198→| [Engineering-Rules.md](./Engineering-Rules.md) | Non-violable coding standards, security rules, testing rules |
