@@ -100,7 +100,6 @@ export default function ChatLayoutClient() {
 
   function handleSelectSession(id: string) {
     actions.setActiveSessionId(id);
-    router.push(`/chat/${id}`);
   }
 
   function handleNewChat() {
