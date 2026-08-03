@@ -40,6 +40,15 @@ log "PM2 stopped"
 echo ""
 
 # ==========================================
+# STEP 2.5: Sync database schema
+# ==========================================
+warn "Step 2.5: Syncing database schema..."
+npx prisma generate
+npx prisma db push --accept-data-loss 2>/dev/null || npx prisma db push
+log "Database schema synced + Prisma client generated"
+echo ""
+
+# ==========================================
 # STEP 3: Clean build (includes static copy)
 # ==========================================
 warn "Step 3: Clean build..."

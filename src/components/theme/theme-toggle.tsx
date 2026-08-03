@@ -1,14 +1,9 @@
 'use client';
 
 import { useTheme } from './theme-provider';
+import { Sun, Moon, Monitor } from 'lucide-react';
 
 type ThemePreference = 'light' | 'dark' | 'system';
-
-const themes: { value: ThemePreference; label: string; icon: string }[] = [
-  { value: 'light', label: 'روشن', icon: '☀️' },
-  { value: 'dark', label: 'تاریک', icon: '🌙' },
-  { value: 'system', label: 'سیستم', icon: '🖥️' },
-];
 
 export function ThemeToggle() {
   const { preference, setPreference } = useTheme();
@@ -20,18 +15,26 @@ export function ThemeToggle() {
     setPreference(next);
   }
 
-  const current = themes.find((t) => t.value === preference);
+  const labelMap: Record<ThemePreference, string> = {
+    light: 'حالت روشن',
+    dark: 'حالت تاریک',
+    system: 'پیش‌فرض سیستم',
+  };
+
+  const iconMap: Record<ThemePreference, React.ReactNode> = {
+    light: <Sun className='h-[18px] w-[18px]' />,
+    dark: <Moon className='h-[18px] w-[18px]' />,
+    system: <Monitor className='h-[18px] w-[18px]' />,
+  };
 
   return (
     <button
-      type="button"
+      type='button'
       onClick={cycleTheme}
-      aria-label={`${current?.label}: ${preference}`}
-      className="relative flex h-9 w-9 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] ease-[var(--ease-out)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-border-focus)]"
+      aria-label={labelMap[preference]}
+      className='flex h-9 w-9 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] ease-[var(--ease-out)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-border-focus)]'
     >
-      <span className="text-base" role="img" aria-hidden="true">
-        {current?.icon}
-      </span>
+      {iconMap[preference]}
     </button>
   );
 }

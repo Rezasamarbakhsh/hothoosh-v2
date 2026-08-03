@@ -183,7 +183,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           {/* Logout button */}
             <button
               type='button'
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); signOut({ callbackUrl: '/login' }); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); signOut({ callbackUrl: window.location.origin + '/login' }); }}
               className='flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-error-500)]/10 hover:text-[var(--color-error-500)]'
               aria-label='خروج از حساب'
               title='خروج'

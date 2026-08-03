@@ -178,7 +178,7 @@ export default function ProfileClient() {
         <p className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>
           با خروج از حساب، از تمام دستگاه‌ها خارج خواهید شد.
         </p>
-        <Button variant='destructive' onClick={() => signOut({ callbackUrl: '/login' })}>
+        <Button variant='destructive' onClick={() => signOut({ callbackUrl: window.location.origin + '/login' })}>
           <LogOut className='h-4 w-4 ml-2' />
           خروج از حساب
         </Button>

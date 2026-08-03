@@ -223,9 +223,9 @@ export default function ChatLayoutClient() {
 
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {activeSessionId && messages.length > 0 ? (
-            <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+            <div className="mx-auto max-w-3xl space-y-6 px-4 py-8" dir="ltr">
               {messages.map((msg) => (
-                <div key={msg.id} className={cn('flex gap-3', msg.role === 'user' ? 'flex-row-reverse' : '')}>
+                <div key={msg.id} className={cn('flex gap-3', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
                   <div className={cn(
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-[var(--font-weight-semibold)]',
                     msg.role === 'user'
@@ -241,7 +241,7 @@ export default function ChatLayoutClient() {
                         ? 'bg-[var(--color-primary-500)]/10 text-[var(--color-text-primary)]'
                         : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]',
                     )}
-                    style={{ fontSize: 'var(--text-body-sm)', lineHeight: 'var(--leading-body-md)' }}
+                    style={{ fontSize: 'var(--text-body-sm)', lineHeight: 'var(--leading-body-md)', direction: 'rtl', textAlign: 'right' }}
                   >
                     {msg.content.split('\n').map((line, i) => {
                       if (!line) return <br key={i} />;
