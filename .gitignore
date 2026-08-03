@@ -46,9 +46,29 @@ local-*
 *.log
 dev.log
 dev.out.log
-test
-prompt
-
 server.log
+
 # Skills directory
 /skills/
+
+# Tool results & temp
+/tool-results/
+verification-*.png
+
+# Database
+*.db
+
+# Download (user deliverables, not project source)
+/download/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Lock files (optional, uncomment if you want to ignore)
+# bun.lock
