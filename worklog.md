@@ -135,3 +135,43 @@ Stage Summary:
 - Feature-based organization: features/agents/{components,types,hooks,stores,services}/
 - Files created: 10 (3 feature components, 1 types file, 6 route files)
 - Files modified: 2 (sidebar.tsx, workspace-shell.tsx)
+
+---
+Task ID: 5
+Agent: Lead Software Architect
+Task: Feature 5 — Knowledge Base System (پایگاه دانش)
+
+Work Log:
+- Read PRD FR-KNOW-001 through FR-KNOW-007, Database §7 (knowledge_bases, knowledge_documents, knowledge_chunks), Backend-Arch RAG Engine, IA §4.2
+- Created knowledge types file with: KnowledgeBase, KnowledgeDocument, KnowledgeChunk, SearchResult, KnowledgeBaseDetail interfaces
+- Created processing pipeline types: KBType (5 types), KBProcessingStatus (4 states), DocumentProcessingStatus (7 pipeline stages), ChunkingStrategy (4 strategies), DocumentFileType (7 formats)
+- Created Persian label/color maps for all entity types and statuses
+- Created 7 mock knowledge bases covering: 4 ready (document type), 1 processing (document, 3 files in pipeline), 1 empty, 1 web type
+- Created MOCK_KB_DETAILS with realistic document lists (including processing pipeline states: extracting, chunking, embedding, ready, failed with error message)
+- Built KBCard molecule: status icon (animated pulse for processing), type badge, description, file stats (documents/chunks/size), bound agent count
+- Built KBList organism: search input, status filter pills (5), type filter pills (6), sort buttons (name/docs/updated), quick stats row (4 cards: total/ready/docs/chunks), empty state, responsive 3-column grid
+- Built KBDetail organism with 4 tabs per IA §4.2:
+  - Documents: drag-and-drop upload area placeholder, document list with file type icons, size, chunk count, 7-state processing badges, error display
+  - Chunks: chunk cards with index, token count, heading metadata, content preview, RTL direction
+  - Search Test: info panel, query input, simulated 1.2s search with spinner, results with score percentages and search type badges (hybrid/vector/BM25)
+  - Settings: basic info grid, chunking config with overlap ratio progress bar, danger zone with delete button
+- Created /knowledge/page.tsx (Server Component with Persian metadata)
+- Created /knowledge/loading.tsx (3-column card skeleton per Frontend-Arch §4.3)
+- Created /knowledge/error.tsx (Persian error, retry + back)
+- Created /knowledge/[kbId]/page.tsx (Server Component with dynamic metadata, 404 for invalid IDs)
+- Created /knowledge/[kbId]/loading.tsx (breadcrumb + header + tab bar + document list skeleton)
+- Created /knowledge/[kbId]/error.tsx (Persian error, retry + back to list)
+- Fixed TypeScript error: `unknown` type from metadata.heading resolved with typeof guard
+- All routes verified: /knowledge 200, /knowledge/kb-1 200, /knowledge/kb-5 200, /agents 200, /chat 200
+- 0 TypeScript errors in src/
+
+Stage Summary:
+- Knowledge base gallery is fully functional with client-side filtering, sorting, and search
+- 7 mock knowledge bases with realistic Persian names, varied statuses, and processing pipeline states
+- KB detail page: 4-tab interface (documents/chunks/search test/settings) per IA §4.2
+- Search Test panel: simulated hybrid retrieval with score display and search type badges
+- Document list shows 7-stage processing pipeline (uploaded → extracting → chunking → embedding → indexed → ready → failed)
+- Settings tab shows chunking configuration with visual overlap ratio
+- Feature-based organization: features/knowledge/{components,types,hooks,stores,services}/
+- Files created: 8 (3 feature components, 1 types file, 6 route files)
+- Files modified: 0
