@@ -212,44 +212,20 @@ export default function ChatLayoutClient() {
             )}
           </nav>
         </ScrollArea>
-
-        <div className="border-t border-[var(--color-border-default)] px-3 py-3">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-            <span className="text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>\u062f\u0633\u062a\u06cc\u0627\u0631 \u067e\u06cc\u0634\u200c\u0641\u0631\u0636</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {MOCK_AGENTS.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => actions.setActiveAgentId(agent.id)}
-                className={cn(
-                  'rounded-full px-2.5 py-1 transition-colors',
-                  activeAgentId === agent.id
-                    ? 'bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]'
-                    : 'bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)]',
-                )}
-                style={{ fontSize: 'var(--text-caption-xs)' }}
-              >
-                {agent.id === 'auto' ? '\u062e\u0648\u062f\u06a9\u0627\u0631' : agent.name.replace('PTA ', '')}
-              </button>
-            ))}
-          </div>
-        </div>
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex h-12 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
+        <div className="flex h-10 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
               aria-label="open sidebar"
             >
               <PanelLeft className="h-4 w-4" />
             </button>
           )}
-          <span className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-sm)' }}>
+          <span className="truncate font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-sm)' }}>
             {activeSession?.title ?? '\u0647\u0627\u062a\u200c\u0647\u0648\u0634'}
           </span>
         </div>
@@ -336,47 +312,8 @@ export default function ChatLayoutClient() {
           )}
         </div>
 
-        <div className="w-full px-6 pb-5 pt-2">
+        <div className="w-full px-6 pb-4 pt-2">
           <div className="mx-auto max-w-3xl">
-            <Popover open={agentOpen} onOpenChange={setAgentOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="mb-2 flex items-center gap-1.5 rounded-full px-3 py-1 border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary-500)] hover:text-[var(--color-text-secondary)]"
-                  style={{ fontSize: 'var(--text-caption-xs)' }}
-                >
-                  {activeAgentId === 'auto' ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                  <span>{activeAgent?.name ?? '\u062a\u0634\u062e\u06cc\u0635 \u062e\u0648\u062f\u06a9\u0627\u0631'}</span>
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-0" align="start" side="top" sideOffset={8}>
-                <Command>
-                  <CommandInput placeholder="\u062c\u0633\u062a\u062c\u0648\u06cc \u062f\u0633\u062a\u06cc\u0627\u0631..." />
-                  <CommandList className="max-h-64">
-                    <CommandEmpty>\u062f\u0633\u062a\u06cc\u0627\u0631\u06cc \u06cc\u0627\u0641\u062a \u0646\u0634\u062f</CommandEmpty>
-                    {MOCK_AGENTS.map((agent) => (
-                      <CommandItem
-                        key={agent.id}
-                        onSelect={() => { actions.setActiveAgentId(agent.id); setAgentOpen(false); }}
-                        className="flex items-center gap-3 px-3 py-2.5"
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-subtle)]">
-                          {agent.id === 'auto' ? <Sparkles className="h-4 w-4 text-[var(--color-text-muted)]" /> : <Bot className="h-4 w-4 text-[var(--color-text-muted)]" />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-caption-sm)' }}>{agent.name}</p>
-                          {agent.description && (
-                            <p className="truncate text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>{agent.description}</p>
-                          )}
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-
             <div className="relative rounded-2xl p-[2px] ai-border">
               <form onSubmit={handleSubmit}>
                 <div className="flex items-end gap-2 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-4 py-3">
@@ -415,9 +352,46 @@ export default function ChatLayoutClient() {
                 </div>
               </form>
             </div>
-            <p className="mt-2 text-center text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>
-              Enter \u0628\u0631\u0627\u06cc \u0627\u0631\u0633\u0627\u0644 · Shift+Enter \u0628\u0631\u0627\u06cc \u062e\u0637 \u062c\u062f\u06cc\u062f
-            </p>
+            <div className="mt-2 flex items-center justify-center">
+              <Popover open={agentOpen} onOpenChange={setAgentOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-secondary)]"
+                    style={{ fontSize: 'var(--text-caption-xs)' }}
+                  >
+                    {activeAgentId === 'auto' ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                    <span>{activeAgent?.name ?? '\u062a\u0634\u062e\u06cc\u0635 \u062e\u0648\u062f\u06a9\u0627\u0631'}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="center" side="bottom" sideOffset={4}>
+                  <Command>
+                    <CommandInput placeholder="\u062c\u0633\u062a\u062c\u0648\u06cc \u062f\u0633\u062a\u06cc\u0627\u0631..." />
+                    <CommandList className="max-h-64">
+                      <CommandEmpty>\u062f\u0633\u062a\u06cc\u0627\u0631\u06cc \u06cc\u0627\u0641\u062a \u0646\u0634\u062f</CommandEmpty>
+                      {MOCK_AGENTS.map((agent) => (
+                        <CommandItem
+                          key={agent.id}
+                          onSelect={() => { actions.setActiveAgentId(agent.id); setAgentOpen(false); }}
+                          className="flex items-center gap-3 px-3 py-2.5"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-subtle)]">
+                            {agent.id === 'auto' ? <Sparkles className="h-4 w-4 text-[var(--color-text-muted)]" /> : <Bot className="h-4 w-4 text-[var(--color-text-muted)]" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-caption-sm)' }}>{agent.name}</p>
+                            {agent.description && (
+                              <p className="truncate text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>{agent.description}</p>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </div>
       </div>

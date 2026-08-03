@@ -10,5 +10,5 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className='h-dvh'>{children}</div>;
+  return <div className='h-full'>{children}</div>;
 }

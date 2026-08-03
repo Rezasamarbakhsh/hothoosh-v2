@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -15,26 +16,14 @@ export default function AuthLayout({
       <div className="w-full max-w-md">
         {/* Logo / Brand */}
         <div className="mb-8 text-center">
-          <h1
-            className="text-[var(--color-text-primary)]"
-            style={{
-              fontSize: 'var(--text-heading-xl)',
-              fontWeight: 'var(--font-weight-bold)',
-              lineHeight: 'var(--leading-heading-xl)',
-              letterSpacing: 'var(--tracking-tight)',
-            }}
-          >
-            هات‌هوش
-          </h1>
-          <p
-            className="mt-2 text-[var(--color-text-secondary)]"
-            style={{
-              fontSize: 'var(--text-body-sm)',
-              lineHeight: 'var(--leading-body-sm)',
-            }}
-          >
-            فضای کاری هوش مصنوعی سازمانی
-          </p>
+          <Image
+            src="/hothoosh.png"
+            alt="هات‌هوش"
+            width={400}
+            height={121}
+            className="mx-auto h-16 w-auto"
+            priority
+          />
         </div>
 
         {/* Auth card — Glass Morphism */}
