@@ -1,0 +1,30 @@
+/* Glass Morphism Surfaces — loaded separately to bypass Lightning CSS backdrop-filter stripping */
+.glass-panel-solid {
+  background: var(--color-surface-solid);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--color-border-default);
+}
+
+.glass-panel-elevated {
+  background: var(--color-surface-elevated);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+
+.glass-panel-data {
+  background: var(--color-surface-data);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+.glass-panel-subtle {
+  background: var(--color-surface-subtle);
+  backdrop-filter: blur(4px) saturate(120%);
+  -webkit-backdrop-filter: blur(4px) saturate(120%);
+  border: 1px solid var(--color-border-default);
+}
