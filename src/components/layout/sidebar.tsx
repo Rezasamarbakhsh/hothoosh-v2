@@ -3,8 +3,19 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { MessageSquare, Bot, Database, Brain, ShieldCheck } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
+import {
+  MessageSquare,
+  Bot,
+  Database,
+  Brain,
+  ShieldCheck,
+  ChevronRight,
+  LogOut,
+  Moon,
+  Sun,
+} from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 interface NavItem {
   id: string;
@@ -30,8 +41,13 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { theme, setTheme } = useTheme();
 
-  const isAdmin = (session?.user as any)?.role === 'admin';
+  const isAdmin = (session?.user as Record<string, unknown>)?.role === 'admin';
+  const userName = (session?.user as Record<string, unknown>)?.name as string | undefined;
+  const userRole = (session?.user as Record<string, unknown>)?.role as string | undefined;
+  const initial = userName ? userName.charAt(0) : '?';
+  const roleLabel = userRole === 'admin' ? 'مدیر' : 'کاربر';
 
   const visibleNav = WORKSPACE_NAV.filter(
     (item) => !item.adminOnly || isAdmin,
@@ -53,35 +69,35 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         'glass-panel-solid flex h-full flex-col transition-[width] duration-[var(--duration-300)] ease-[var(--ease-out)] ' +
         (collapsed ? 'w-16' : 'w-64')
       }
-      aria-label="ناوبری اصلی"
+      aria-label='ناوبری اصلی'
     >
       {/* Logo area */}
-      <div className="flex h-14 items-center gap-3 border-b border-[var(--color-border-default)] px-4">
+      <div className='flex h-14 items-center gap-3 border-b border-[var(--color-border-default)] px-4'>
         <button
-          type="button"
+          type='button'
           onClick={onToggle}
           aria-label={collapsed ? 'باز کردن نوار کناری' : 'بستن نوار کناری'}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]"
+          className='flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]'
         >
           <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            className="transition-transform duration-[var(--duration-200)]"
+            width='20'
+            height='20'
+            viewBox='0 0 20 20'
+            fill='none'
+            className='transition-transform duration-[var(--duration-200)]'
             style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
-            aria-hidden="true"
+            aria-hidden='true'
           >
             <path
-              d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-              fill="currentColor"
+              d='M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z'
+              fill='currentColor'
             />
           </svg>
         </button>
         {!collapsed && (
-          <Link href="/chat" className="truncate">
+          <Link href='/chat' className='truncate'>
             <span
-              className="text-[var(--text-heading-sm)] font-[var(--font-weight-semibold)] tracking-[var(--tracking-tight-xs)] text-[var(--color-text-primary)]"
+              className='text-[var(--text-heading-sm)] font-[var(--font-weight-semibold)] tracking-[var(--tracking-tight-xs)] text-[var(--color-text-primary)]'
               style={{ fontSize: 'var(--text-heading-sm)' }}
             >
               هات‌هوش
@@ -91,8 +107,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
-        <ul className="flex flex-col gap-1" role="list">
+      <nav className='flex-1 overflow-y-auto px-2 py-3'>
+        <ul className='flex flex-col gap-1' role='list'>
           {visibleNav.map((item) => {
             const isActive = item.id === activeId;
             return (
@@ -107,17 +123,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       : 'hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]')
                   }
                 >
-                  {/* Active indicator */}
                   {isActive && (
                     <span
-                      className="absolute inset-y-0 start-0 w-[3px] rounded-e-full bg-[var(--color-accent)]"
-                      aria-hidden="true"
+                      className='absolute inset-y-0 start-0 w-[3px] rounded-e-full bg-[var(--color-primary-500)]'
+                      aria-hidden='true'
                     />
                   )}
                   <span className='shrink-0 h-5 w-5' aria-hidden='true'>{item.icon}</span>
                   {!collapsed && (
                     <span
-                      className="truncate font-[var(--font-weight-medium)]"
+                      className='truncate font-[var(--font-weight-medium)]'
                       style={{ fontSize: 'var(--text-body-md)' }}
                     >
                       {item.label}
@@ -129,6 +144,63 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           })}
         </ul>
       </nav>
+
+      {/* Bottom: Profile + Actions */}
+      <div className='border-t border-[var(--color-border-default)]'>
+        {/* Theme toggle */}
+        <button
+          type='button'
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className='flex w-full items-center gap-3 px-4 py-2.5 text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]'
+          aria-label='تغییر تم'
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {!collapsed && (
+            <span style={{ fontSize: 'var(--text-caption-sm)' }}>
+              {theme === 'dark' ? 'حالت روشن' : 'حالت تاریک'}
+            </span>
+          )}
+        </button>
+
+        {/* Profile row */}
+        <div className='flex items-center gap-3 px-4 py-3'>
+          {/* Avatar */}
+          <div
+            className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-100)] font-[var(--font-weight-semibold)] text-[var(--color-primary-500)]'
+            style={{ fontSize: 'var(--text-body-sm)' }}
+          >
+            {initial}
+          </div>
+
+          {!collapsed && (
+            <div className='min-w-0 flex-1'>
+              <p
+                className='truncate font-[var(--font-weight-medium)] text-[var(--color-text-primary)]'
+                style={{ fontSize: 'var(--text-caption-sm)' }}
+              >
+                {userName || 'کاربر'}
+              </p>
+              <p
+                className='text-[var(--color-text-muted)]'
+                style={{ fontSize: 'var(--text-caption-xs)' }}
+              >
+                {roleLabel}
+              </p>
+            </div>
+          )}
+
+          {/* Logout button */}
+          <button
+            type='button'
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-error-100)] hover:text-[var(--color-error-500)]'
+            aria-label='خروج از حساب'
+            title='خروج'
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

@@ -115,11 +115,11 @@
   --color-text-inverse: #ffffff;
   --color-text-link: var(--color-primary-500);
 
-  /* --- Accent (Orange) --- */
-  --color-accent: #f97316;
-  --color-accent-light: #fed7aa;
-  --color-accent-dark: #c2410c;
-  --color-accent-muted: #fdba74;
+  /* --- Accent (Indigo — same family as Primary) --- */
+  --color-accent: #818cf8;
+  --color-accent-light: #c7d2fe;
+  --color-accent-dark: #4f46e5;
+  --color-accent-muted: #a5b4fc;
 
   /* --- Border --- */
   --color-border-default: rgba(0, 0, 0, 0.08);
@@ -197,11 +197,11 @@
   --color-text-inverse: #0f172a;
   --color-text-link: var(--color-primary-400);
 
-  /* --- Accent (Orange) --- */
-  --color-accent: #fb923c;
-  --color-accent-light: #7c2d12;
-  --color-accent-dark: #fdba74;
-  --color-accent-muted: #9a3412;
+  /* --- Accent (Indigo — same family as Primary) --- */
+  --color-accent: #a5b4fc;
+  --color-accent-light: #312e81;
+  --color-accent-dark: #6366f1;
+  --color-accent-muted: #4338ca;
 
   /* --- Border --- */
   --color-border-default: rgba(255, 255, 255, 0.08);

@@ -29,7 +29,6 @@ export default function ChatSessionClient({ chatId }: Props) {
   const session = MOCK_SESSIONS.find((s) => s.id === chatId) ?? MOCK_SESSIONS[0];
   const agent = MOCK_AGENTS.find((a) => a.id === session.agentId) ?? MOCK_AGENTS[0];
 
-  /* Auto-scroll to bottom on new messages */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -54,7 +53,6 @@ export default function ChatSessionClient({ chatId }: Props) {
     setMessages((prev) => [...prev, userMsg]);
     setStreaming(true);
 
-    /* Simulate AI response */
     setTimeout(() => {
       const assistantMsg: ChatMessage = {
         id: `msg-local-ai-${Date.now()}`,
@@ -83,15 +81,15 @@ export default function ChatSessionClient({ chatId }: Props) {
         <ConversationList activeId={chatId} />
       </div>
 
-      {/* Main chat area */}
-      <div className='flex flex-1 flex-col overflow-hidden'>
+      {/* Main chat area — centered */}
+      <div className='flex flex-1 flex-col items-center overflow-hidden'>
         {/* Messages area */}
         <div
-          className='flex-1 overflow-y-auto px-4 pt-4'
+          className='flex-1 w-full overflow-y-auto'
           aria-live='polite'
           aria-label='پیام‌های گفتگو'
         >
-          <div className='mx-auto max-w-3xl space-y-6'>
+          <div className='mx-auto max-w-3xl px-6 py-6 space-y-6'>
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
@@ -108,7 +106,7 @@ export default function ChatSessionClient({ chatId }: Props) {
           </div>
         </div>
 
-        {/* Input area */}
+        {/* Input area — centered, wider */}
         <ChatInput
           onSend={handleSend}
           disabled={false}
@@ -117,7 +115,7 @@ export default function ChatSessionClient({ chatId }: Props) {
         />
       </div>
 
-      {/* Mobile sidebar toggle — floating button */}
+      {/* Mobile sidebar toggle */}
       <button
         onClick={() => setListOpen(true)}
         className='fixed bottom-24 start-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-secondary)] shadow-[var(--shadow-md)] transition-colors duration-100 hover:bg-[var(--color-surface-data)] lg:hidden'
@@ -126,7 +124,7 @@ export default function ChatSessionClient({ chatId }: Props) {
         <PanelLeft className='h-5 w-5' />
       </button>
 
-      {/* Mobile sheet for conversation list */}
+      {/* Mobile sheet */}
       <Sheet open={isListOpen} onOpenChange={setListOpen}>
         <SheetContent side='right' className='w-72 p-0 bg-[var(--color-background-subtle)]'>
           <SheetHeader className='sr-only'>

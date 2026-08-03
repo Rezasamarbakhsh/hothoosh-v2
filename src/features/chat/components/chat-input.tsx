@@ -70,7 +70,7 @@ export function ChatInput({
   const canSend = value.trim().length > 0 && !disabled && !isStreaming;
 
   return (
-    <div className='px-4 pb-4 pt-2'>
+    <div className='w-full px-6 pb-5 pt-2'>
       <div className='mx-auto max-w-3xl'>
         {/* Agent selector above input */}
         <div className='mb-2 flex justify-start'>
