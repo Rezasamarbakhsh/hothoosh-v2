@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'گفتگو — هات‌هوش',
-  description: 'گفتگوی هوشمند با دستیارهای AI',
+  description: 'گفتگوی هوشمند با دستیاران AI',
 };
 
 export default function ChatLayout({
@@ -10,9 +10,5 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className='flex h-dvh overflow-hidden'>
-      {children}
-    </div>
-  );
+  return <div className='h-dvh'>{children}</div>;
 }

@@ -1,5 +1,5 @@
-import ChatListClient from './chat-list-client';
+import ChatLayoutClient from './chat-layout-client';
 
 export default function ChatPage() {
-  return <ChatListClient />;
+  return <ChatLayoutClient />;
 }

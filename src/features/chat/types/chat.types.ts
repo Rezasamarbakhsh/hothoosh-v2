@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 /** Message role — matches Database §6.2 chat_messages.role */
 export const MessageRole = {
   USER: 'user',
