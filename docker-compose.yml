@@ -1,20 +1,19 @@
-version: "3.9"
+# HotHoosh v2 - Docker Compose
+# Uses host nginx for SSL (Cloudflare) → just exposes app on port 3000
 
 services:
   hothoosh:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: hothoosh-app
+    container_name: hothoosh-v2
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3000"
     env_file:
       - .env
     volumes:
       - hothoosh-data:/app/data
-    networks:
-      - hothoosh-net
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api"]
       interval: 30s
@@ -22,31 +21,6 @@ services:
       retries: 3
       start_period: 40s
 
-  caddy:
-    image: caddy:2-alpine
-    container_name: hothoosh-caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    networks:
-      - hothoosh-net
-    depends_on:
-      hothoosh:
-        condition: service_healthy
-
 volumes:
   hothoosh-data:
     driver: local
-  caddy-data:
-    driver: local
-  caddy-config:
-    driver: local
-
-networks:
-  hothoosh-net:
-    driver: bridge
