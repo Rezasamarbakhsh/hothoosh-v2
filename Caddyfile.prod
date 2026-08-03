@@ -1,17 +1,8 @@
-# Caddy Production Config for HotHoosh
-# Replace hothoosh.example.com with your actual domain
+# HotHoosh v2 - Caddy Production Config
+# SSL: Caddy auto-issues Let's Encrypt cert for v2.hothoosh.ir
+# Cloudflare: set SSL/TLS mode to "Full (Strict)"
 
-hothoosh.example.com {
-	reverse_proxy hothoosh:3000 {
-		header_up Host {host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Real-IP {remote_host}
-	}
-}
-
-# HTTP fallback (redirects to HTTPS automatically by Caddy)
-:80 {
+v2.hothoosh.ir {
 	reverse_proxy hothoosh:3000 {
 		header_up Host {host}
 		header_up X-Forwarded-For {remote_host}
