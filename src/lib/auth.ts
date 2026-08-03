@@ -16,8 +16,10 @@ export const authOptions: NextAuthOptions = {
 
         const user = await db.user.findUnique({
           where: { email: credentials.email },
+          include: { company: { select: { id: true, name: true, slug: true } } },
         });
         if (!user) return null;
+        if (!user.isActive) return null;
 
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) return null;
@@ -33,9 +35,16 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const dbUser = await db.user.findUnique({ where: { id: user.id! } });
+        const dbUser = await db.user.findUnique({
+          where: { id: user.id! },
+          include: { company: { select: { id: true, name: true, slug: true } } },
+        });
         if (dbUser) {
           token.role = dbUser.role;
+          token.companyId = dbUser.companyId;
+          token.companyName = dbUser.company?.name ?? null;
+          token.companySlug = dbUser.company?.slug ?? null;
+          token.isActive = dbUser.isActive;
         }
         token.id = user.id;
       }
@@ -45,6 +54,10 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as Record<string, unknown>).role = token.role;
         (session.user as Record<string, unknown>).id = token.id;
+        (session.user as Record<string, unknown>).companyId = token.companyId;
+        (session.user as Record<string, unknown>).companyName = token.companyName;
+        (session.user as Record<string, unknown>).companySlug = token.companySlug;
+        (session.user as Record<string, unknown>).isActive = token.isActive;
       }
       return session;
     },

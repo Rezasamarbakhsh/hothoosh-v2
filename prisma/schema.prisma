@@ -8,15 +8,69 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  passwordHash  String
-  role          String   @default("user")
-  sessions      Session[]
-  accounts      Account[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         String   @default("user")
+  isActive     Boolean  @default(true)
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id])
+  sessions     Session[]
+  accounts     Account[]
+  usageLogs    UsageLog[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model Company {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  slug        String        @unique
+  description String?
+  isActive    Boolean       @default(true)
+  users       User[]
+  usageLogs   UsageLog[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  name          String
+  provider      String
+  key           String
+  status        String    @default("active")
+  model         String?
+  monthlyBudget Int       @default(0)
+  totalRequests Int       @default(0)
+  totalTokens   Int       @default(0)
+  lastUsedAt    DateTime?
+  usageLogs     UsageLog[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model UsageLog {
+  id           String   @id @default(cuid())
+  userId       String
+  companyId    String?
+  apiKeyId     String?
+  model        String?
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  latencyMs    Int?
+  createdAt    DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+  apiKey  ApiKey?  @relation(fields: [apiKeyId], references: [id])
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([createdAt])
 }
 
 model Session {
