@@ -334,3 +334,23 @@ Work Log:
 
 Stage Summary:
 Admin panel created at /admin with API key management. 6 mock API keys across 4 providers (OpenAI, Anthropic, Google AI, local). Summary stats, card list with usage bars, add dialog, and dropdown actions. Uses shadcn/ui components throughout with Persian RTL layout, CSS variables, and fa-IR number formatting.
+
+---
+Task ID: 9
+Agent: main
+Task: Fix chat loading, move PTA selector to bottom (Claude-style), add logo to login
+
+Work Log:
+- Diagnosed chat overflow: h-dvh in chat/layout.tsx caused content to exceed parent container (WorkspaceShell has TopBar taking 48px)
+- Changed h-dvh to h-full in chat/layout.tsx so chat fills available space instead of full viewport
+- Removed PTA selector from sidebar bottom and from above the input area
+- Added PTA selector below the ai-border input area (Claude-style, centered, small pill button with icon + name + chevron)
+- Reduced chat top bar height from h-12 to h-10
+- Copied hothoosh.png to public/ and replaced text heading + subtitle in auth layout with Next.js Image component
+- All changes committed (c61c6bd) and pushed to GitHub
+
+Stage Summary:
+- Chat section now renders properly without overflow (h-full instead of h-dvh)
+- PTA selector is a small clickable pill centered below the chat input, like Claude's model picker
+- Login page shows hothoosh.png logo image instead of text 'هات‌هوش' + subtitle
+- Commit c61c6bd pushed to main
