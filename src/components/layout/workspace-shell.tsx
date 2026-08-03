@@ -11,7 +11,6 @@ interface WorkspaceShellProps {
 export function WorkspaceShell({ children }: WorkspaceShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState('chat');
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
@@ -21,8 +20,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
     setMobileMenuOpen((prev) => !prev);
   }, []);
 
-  const handleNavigate = useCallback((id: string) => {
-    setActiveNav(id);
+  const closeMobileMenu = useCallback(() => {
     setMobileMenuOpen(false);
   }, []);
 
@@ -38,8 +36,6 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={handleToggleSidebar}
-          activeId={activeNav}
-          onNavigate={handleNavigate}
         />
       </div>
 
@@ -49,15 +45,13 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/40"
-            onClick={handleMobileMenu}
+            onClick={closeMobileMenu}
             aria-hidden="true"
           />
           <div className="relative z-10 h-full w-64">
             <Sidebar
               collapsed={false}
               onToggle={handleMobileMenu}
-              activeId={activeNav}
-              onNavigate={handleNavigate}
             />
           </div>
         </div>

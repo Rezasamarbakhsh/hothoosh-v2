@@ -1,0 +1,713 @@
+   248→    └── settings/
+   249→        ├── page.tsx                    # User settings (profile, theme, 2FA, language, calendar)
+   250→        ├── loading.tsx                 # Settings skeleton
+   251→        └── error.tsx                   # Settings error boundary
+   252→```
+   253→
+   254→### 4.3 Loading States
+   255→
+   256→Per Engineering Rules §10.4.1, every route segment that fetches async data must have a `loading.tsx` that renders a skeleton matching the page layout. This provides instant visual feedback and prevents layout shift (CLS) when data arrives.
+   257→
+   258→| Route | Loading Strategy |
+   259→|-------|-----------------|
+   260→| `/chat` | Skeleton cards in the conversation list panel matching the height and width of real conversation items |
+   261→| `/chat/[chatId]` | Skeleton message bubbles (3–5 placeholder rows) matching the chat layout, with a skeleton input bar at the bottom |
+   262→| `/agents` | Skeleton agent cards in a grid layout matching the gallery's 3-column desktop layout |
+   263→| `/knowledge` | Skeleton list items with status badge placeholders and document count placeholders |
+   264→| `/memory` | Skeleton list items with type badge and version count placeholders |
+   265→| `/settings` | Skeleton form fields matching the settings page layout |
+   266→
+   267→### 4.4 Error Boundaries
+   268→
+   269→Per Engineering Rules §10.4.1, every route segment has an `error.tsx` boundary. Error boundaries catch both Server Component errors and Client Component render errors. Each boundary provides a Persian-language error message, a retry button, and a link back to the parent route.
+   270→
+   271→| Boundary | Catches | User Sees |
+   272→|----------|---------|----------|
+   273→| Root `error.tsx` | Unhandled errors outside any route group | Full-page error with Persian message, retry button, link to `/chat` |
+   274→| `(workspace)/error.tsx` | Errors in any workspace page | Error panel within the workspace shell (sidebar remains visible) |
+   275→| `chat/error.tsx` | Errors loading the chat list | Error within the chat layout (conversation list panel shows error) |
+   276→| `chat/[chatId]/error.tsx` | Errors loading a specific chat session | Error within the chat session layout (conversation list remains accessible) |
+   277→| Feature-level | Errors in async operations within a feature | React error boundary wrapper with localized message and retry |
+   278→
+   279→---
+   280→
+   281→## 5. Component Architecture
+   282→
+   283→HotHoosh follows the Atomic Design methodology, organizing components into five hierarchical levels. Components are further organized by feature domain, ensuring that all code related to a business concept lives in one self-contained directory.
+   284→
+   285→### 5.1 Atomic Design Hierarchy
+   286→
+   287→| Level | Definition | Location | Examples |
+   288→|-------|-----------|----------|----------|
+   289→| **Atoms** | Smallest indivisible UI elements. Cannot be decomposed further. No business logic. | `packages/ui/src/components/` | Button, Input, Badge, Avatar, Skeleton, Spinner, Separator, Toggle |
+   290→| **Molecules** | Combinations of 2–4 atoms that form a distinct UI unit. May contain simple props-based logic. | `packages/ui/src/components/` or `apps/web/src/features/*/components/` | Search Input (Input + Icon), Form Field (Label + Input + Error), Stat Card (Icon + Value + Label + Trend) |
+   291→| **Organisms** | Complex, self-contained UI sections composed of molecules and atoms. May contain hooks and local state. | `apps/web/src/features/*/components/` | Chat Input (textarea + send button + attachment button + agent selector), Message Bubble (avatar + content + actions + timestamp), Data Table (header + rows + pagination + sort indicators), Agent Card (avatar + name + description + status badge + actions) |
+   292→| **Templates** | Page-level layouts that define the structure and spatial relationship of organisms. No real data. | `apps/web/src/components/layouts/` | Workspace Shell (sidebar + top bar + main content area), Chat Layout (conversation list + message area + input bar), Agent Detail Layout (header + tab bar + content area) |
+   293→| **Pages** | Route-level components that wire templates to real data. May be Server Components that fetch data via `async/await`. | `apps/web/src/app/**/page.tsx` | `/chat` page, `/chat/[chatId]` page, `/agents` page |
+   294→
+   295→### 5.2 Feature-Based Organization
+   296→
+   297→Each feature directory is a self-contained module. A feature must be deletable without affecting any other feature. The internal structure follows a consistent pattern:
+   298→
+   299→```
+   300→src/features/{feature-name}/
+   301→├── components/                    # Feature-specific components (organisms and molecules)
+   302→│   ├── {component-name}/
+   303→│   │   ├── index.tsx             # Component implementation
+   304→│   │   ├── {component-name}.module.css  # BEM-named CSS module (only if Tailwind is insufficient)
+   305→│   │   └── {component-name}.test.tsx    # Component tests
+   306→│   └── ...
+   307→├── hooks/                         # Feature-specific custom hooks
+   308→│   ├── use{hook-name}.ts
+   309→│   └── ...
+   310→├── stores/                        # Feature-specific Zustand stores (if any)
+   311→│   └── {feature}.store.ts
+   312→├── services/                      # API call wrappers (fetch/axios)
+   313→│   └── {feature}.service.ts
+   314→├── types/                         # Feature-specific TypeScript types (if not in shared)
+   315→│   └── {feature}.types.ts
+   316→└── index.ts                       # Public API exports only
+   317→```
+   318→
+   319→### 5.3 Component Composition Patterns
+   320→
+   321→| Pattern | Description | Example |
+   322→|---------|-------------|---------|
+   323→| **Server Component wrapper + Client Component child** | A Server Component page fetches data via `async/await` and passes it as props to a Client Component that handles interactivity. | Agent gallery page (Server) fetches agents, passes to `AgentGallery` (Client) for filtering/sorting. |
+   324→| **Slot pattern (Radix AsChild)** | shadcn/ui components support the `asChild` prop, which merges props onto a child element instead of rendering a wrapper DOM node. This avoids unnecessary DOM nesting. | `<Button asChild><Link href="/agents">View Agents</Link></Button>` renders a single `<a>` element styled as a button. |
+   325→| **Compound components** | Related components share implicit state via React Context, allowing flexible composition. | `<DataTable>` exposes `<DataTable.Header>`, `<DataTable.Body>`, `<DataTable.Row>`, `<DataTable.Cell>` with shared sort/filter/pagination state. |
+   326→| **Render props for complex state** | When a component needs to expose complex internal state for customization, it uses a render prop function. | `<ChatInput renderActions={(isStreaming) => <StopButton visible={isStreaming} />}>` |
+   327→| **Provider pattern for cross-cutting concerns** | Global or feature-wide state is provided via React Context at the layout level. | `QueryClientProvider`, `ThemeProvider`, `ToastProvider` at root layout. |
+   328→
+   329→---
+   330→
+   331→## 6. State Management
+   332→
+   333→HotHoosh enforces a strict separation of state management concerns. Each of the four state categories is owned by exactly one tool. Overlapping these boundaries is a violation of Engineering Rules §10.4.1 and §10.4.4.
+   334→
+   335→### 6.1 The Four State Boundaries
+   336→
+   337→| State Type | Tool | Scope | Examples | Key Constraint |
+   338→|-----------|------|-------|----------|----------------|
+   339→| **Server state** | TanStack Query | All data fetched from the API: users, agents, knowledge bases, chat sessions, usage stats, audit logs | `useQuery` for reads, `useMutation` for writes, `useInfiniteQuery` for large lists | Zustand stores never hold server data. If it came from the API, it belongs in TanStack Query. |
+   340→| **Client state** | Zustand | UI-only state that lives entirely in the browser: theme, sidebar open/closed, command palette visibility, selection state, workspace ID | `useThemeStore`, `useSidebarStore`, `useCommandPaletteStore`, `useSelectionStore` | Store actions are synchronous. Async work (API calls) lives in TanStack Query mutations, which call Zustand actions on success. |
+   341→| **Form state** | React Hook Form + Zod | Form input values, validation errors, submission status: login form, create agent form, upload document form, edit settings form | `useForm` with `zodResolver(createAgentSchema)` | Form state never leaks into Zustand or TanStack Query. On submit, form values are passed to a TanStack Query mutation. |
+   342→| **URL state** | Next.js `useSearchParams` + `useRouter` | Navigation state: filters, pagination, active tab, search query, sort order | `?page=2&status=active&sort=created_at&order=desc`, `?tab=documents` | URL is the source of truth for filterable/sortable list views. Components read from and write to URL params. TanStack Query keys include URL params for cache coherence. |
+   343→
+   344→### 6.2 Zustand Store Inventory (Workspace)
+   345→
+   346→Each store manages one domain of client state. No god stores.
+   347→
+   348→| Store | State Fields | Actions | Persistence |
+   349→|-------|-------------|---------|------------|
+   350→| `useThemeStore` | `theme: 'light' | 'dark' | 'system'` | `setTheme(theme)`, `toggleTheme()` | Yes — `localStorage` via `zustand/middleware/persist` |
+   351→| `useSidebarStore` | `isOpen: boolean`, `isCollapsed: boolean` | `toggleSidebar()`, `setCollapsed(collapsed)` | Yes — `localStorage` |
+   352→| `useCommandPaletteStore` | `isOpen: boolean` | `open()`, `close()`, `toggle()` | No — resets on page navigation |
+   353→| `useWorkspaceStore` | `activeWorkspaceId: WorkspaceId` | `setWorkspace(id)` | Yes — `localStorage` (remembers last workspace) |
+   354→| `useChatUIStore` | `isStreaming: boolean`, `inputHeight: number` | `setStreaming(v)`, `setInputHeight(h)` | No — resets per chat session |
+   355→| `useSelectionStore` | `selectedIds: Set<string>` | `select(id)`, `deselect(id)`, `clearSelection()`, `selectAll(ids)` | No — resets per page |
+   356→
+   357→All stores are consumed via selectors to prevent unnecessary re-renders: `useThemeStore(s => s.theme)`, not `useThemeStore()`. Stores are defined in `src/stores/` for app-level stores and `src/features/*/stores/` for feature-specific stores.
+   358→
+   359→### 6.3 TanStack Query Key Factory (Workspace)
+   360→
+   361→Query keys follow a structured factory pattern. Every key is a tuple that encodes the entity type, operation, and identifiers.
+   362→
+   363→```typescript
+   364→// src/lib/query-keys.ts
+   365→
+   366→export const chatKeys = {
+   367→  all:        ['chat'] as const,
+   368→  lists:      () => [...chatKeys.all, 'list'] as const,
+   369→  list:       (filters: ChatFilters) => [...chatKeys.lists(), filters] as const,
+   370→  details:    () => [...chatKeys.all, 'detail'] as const,
+   371→  detail:     (id: ChatSessionId) => [...chatKeys.details(), id] as const,
+   372→  messages:   (id: ChatSessionId) => [...chatKeys.detail(id), 'messages'] as const,
+   373→};
+   374→
+   375→export const agentKeys = {
+   376→  all:        ['agent'] as const,
+   377→  lists:      () => [...agentKeys.all, 'list'] as const,
+   378→  list:       (filters?: AgentFilters) => [...agentKeys.lists(), filters] as const,
+   379→  details:    () => [...agentKeys.all, 'detail'] as const,
+   380→  detail:     (id: AgentId) => [...agentKeys.details(), id] as const,
+   381→};
+   382→
+   383→export const knowledgeKeys = {
+   384→  all:        ['knowledge'] as const,
+   385→  lists:      () => [...knowledgeKeys.all, 'list'] as const,
+   386→  list:       (filters?: KBFilters) => [...knowledgeKeys.lists(), filters] as const,
+   387→  details:    () => [...knowledgeKeys.all, 'detail'] as const,
+   388→  detail:     (id: KnowledgeBaseId) => [...knowledgeKeys.details(), id] as const,
+   389→  documents:  (id: KnowledgeBaseId) => [...knowledgeKeys.detail(id), 'documents'] as const,
+   390→};
+   391→
+   392→export const memoryKeys = {
+   393→  all:        ['memory'] as const,
+   394→  lists:      () => [...memoryKeys.all, 'list'] as const,
+   395→  list:       (filters?: MemoryFilters) => [...memoryKeys.lists(), filters] as const,
+   396→  details:    () => [...memoryKeys.all, 'detail'] as const,
+   397→  detail:     (id: MemoryPackId) => [...memoryKeys.details(), id] as const,
+   398→  versions:   (id: MemoryPackId) => [...memoryKeys.detail(id), 'versions'] as const,
+   399→};
+   400→
+   401→export const userKeys = {
+   402→  all:        ['user'] as const,
+   403→  me:         () => [...userKeys.all, 'me'] as const,
+   404→  preferences:() => [...userKeys.all, 'preferences'] as const,
+   405→  workspaces: () => [...userKeys.all, 'workspaces'] as const,
+   406→};
+   407→```
+   408→
+   409→### 6.4 Cache Invalidation Strategy
+   410→
+   411→Cache invalidation follows a strict hierarchical pattern. Mutations invalidate the narrowest possible key prefix to avoid over-refetching.
+   412→
+   413→| Mutation | Invalidation Scope | Rationale |
+   414→|----------|-------------------|-----------|
+   415→| Send message | `chatKeys.messages(chatId)` | Only the current conversation's messages change. |
+   416→| Create chat session | `chatKeys.lists()` | New session appears in the list. |
+   417→| Delete chat session | `chatKeys.lists()` + `chatKeys.detail(id)` | Removed from list and detail cache cleared. |
+   418→| Update agent | `agentKeys.detail(id)` + `agentKeys.lists()` | Detail updated, list may show changed status/name. |
+   419→| Create agent | `agentKeys.lists()` | New agent appears in list. |
+   420→| Upload document | `knowledgeKeys.documents(kbId)` + `knowledgeKeys.detail(kbId)` | Document count and processing status change. |
+   421→| Update memory pack | `memoryKeys.detail(id)` + `memoryKeys.lists()` | Detail updated, list may show changed version count. |
+   422→| Update user preferences | `userKeys.preferences()` | Only preferences cache needs refresh. |
+   423→
+   424→Optimistic updates are applied for create, update, and delete mutations. On success, the optimistic update becomes permanent. On error, the cache is rolled back to the previous state and a toast notification displays the Persian error message.
+   425→
+   426→---
+   427→
+   428→## 7. RTL Integration
+   429→
+   430→HotHoosh is Persian-first and RTL-native. Right-to-left support is not an afterthought or a conditional layer — it is the default. The entire styling system is built on CSS logical properties that automatically adapt to the document's `dir` attribute, making bidirectional support structural rather than conditional.
+   431→
+   432→### 7.1 CSS Logical Properties
+   433→
+   434→Per Engineering Rules §10.1.4 and Design Decision DD-12, all spacing, positioning, and sizing use CSS logical properties exclusively. Physical properties (`left`, `right`, `ml-*`, `mr-*`, `pl-*`, `pr-*`) are forbidden.
+   435→
+   436→| Physical Property (FORBIDDEN) | Logical Property (REQUIRED) | Tailwind Class | Behavior in RTL | Behavior in LTR |
+   437→|-------------------------------|---------------------------|----------------|-----------------|-----------------|
+   438→| `margin-left` | `margin-inline-start` | `ms-*` | `margin-right` | `margin-left` |
+   439→| `margin-right` | `margin-inline-end` | `me-*` | `margin-left` | `margin-right` |
+   440→| `padding-left` | `padding-inline-start` | `ps-*` | `padding-right` | `padding-left` |
+   441→| `padding-right` | `padding-inline-end` | `pe-*` | `padding-left` | `padding-right` |
+   442→| `text-align: left` | `text-align: start` | `text-start` | `text-align: right` | `text-align: left` |
+   443→| `text-align: right` | `text-align: end` | `text-end` | `text-align: left` | `text-align: right` |
+   444→| `left: 0` | `inset-inline-start: 0` | `start-0` | `right: 0` | `left: 0` |
+   445→| `right: 0` | `inset-inline-end: 0` | `end-0` | `left: 0` | `right: 0` |
+   446→| `width` | `inline-size` | `is-*` | Same (block axis unaffected) | Same |
+   447→| `height` | `block-size` | `bs-*` | Same (inline axis unaffected) | Same |
+   448→| `border-left` | `border-inline-start` | `border-s-*` | `border-right` | `border-left` |
+   449→| `border-right` | `border-inline-end` | `border-e-*` | `border-left` | `border-right` |
+   450→
+   451→An ESLint rule (`no-physical-properties`) enforces this at the lint level. Any use of `left`, `right`, `margin-left`, `margin-right`, `padding-left`, `padding-right` (in CSS or Tailwind classes `ml-*`, `mr-*`, `pl-*`, `pr-*`) is a build error.
+   452→
+   453→### 7.2 Tailwind RTL Configuration
+   454→
+   455→Tailwind CSS 4 provides native support for logical properties. The configuration maps logical utility classes to their CSS counterparts:
+   456→
+   457→- `ms-*` → `margin-inline-start`
+   458→- `me-*` → `margin-inline-end`
+   459→- `ps-*` → `padding-inline-start`
+   460→- `pe-*` → `padding-inline-end`
+   461→- `start-*` → `inset-inline-start`
+   462→- `end-*` → `inset-inline-end`
+   463→- `rounded-s-*` → `border-start-start-radius` and `border-end-start-radius`
+   464→- `rounded-e-*` → `border-start-end-radius` and `border-end-end-radius`
+   465→
+   466→Flexbox and grid automatically respect the document direction. `flex-row` renders items left-to-right in LTR and right-to-left in RTL. `justify-start` aligns to the inline start (left in LTR, right in RTL).
+   467→
+   468→### 7.3 Vazirmatn Font Loading
+   469→
+   470→The Vazirmatn typeface is self-hosted in `public/fonts/` and loaded via Next.js `next/font/local`:
+   471→
+   472→```typescript
+   473→// src/app/layout.tsx
+   474→import localFont from 'next/font/local';
+   475→
+   476→const vazirmatn = localFont({
+   477→  src: [
+   478→    { path: '../../public/fonts/vazirmatn-var.woff2', style: 'normal' },
+   479→  ],
+   480→  variable: '--font-vazirmatn',
+   481→  display: 'swap',
+   482→  preload: true,
+   483→});
+   484→```
+   485→
+   486→The `font-display: swap` prevents invisible text during font loading (FOIT). The `preload: true` hint ensures the critical font file begins downloading immediately. The CSS variable `--font-vazirmatn` is applied to the `:root` selector, making it available to all Tailwind utilities and CSS custom properties.
+   487→
+   488→### 7.4 Direction Switching
+   489→
+   490→The root `<html>` element's `dir` attribute controls the entire page direction. By default, it is set to `"rtl"` for Persian users. When the user switches to English, the `dir` attribute changes to `"ltr"`.
+   491→
+   492→```typescript
+   493→// The theme store also manages direction
+   494→<html
+   495→  dir={locale === 'fa' ? 'rtl' : 'ltr'}
+   496→  lang={locale}
+   497→  className={vazirmatn.variable}
+   498→  data-theme={theme}
+   499→>
+   500→```
+   501→
+   502→Because all styling uses logical properties, changing `dir` automatically flips all margins, padding, borders, text alignment, and positioning. No conditional CSS classes are needed. No JavaScript direction logic exists in components.
+   503→
+   504→### 7.5 Solar Hijri Calendar Component
+   505→
+   506→The Solar Hijri calendar is the default date display for Persian users. It is implemented as a custom component that wraps dayjs with the jalaali-js plugin:
+   507→
+   508→```typescript
+   509→// src/lib/dayjs.ts
+   510→import dayjs from 'dayjs';
+   511→import jalaali from 'jalaali-js';
+   512→
+   513→// Custom dayjs plugin for Jalali calendar
+   514→dayjs.extend(jalaaliPlugin);
+   515→```
+   516→
+   517→The calendar component (a date picker built on shadcn/ui's Calendar primitive) renders months in Solar Hijri format. Month names are in Persian (فروردین, اردیبهشت, خرداد, ...). The component supports:
+   518→
+   519→| Feature | Implementation |
+   520→|---------|---------------|
+   521→| Month/year display | `dayjs().format('jMMMM jYYYY')` → "خرداد ۱۴۰۴" |
+   522→| Date selection | Click on a day cell to select. Selected date uses `dayjs().calendar('jalaali').format()` |
+   523→| Navigation | Previous/next month buttons navigate Solar Hijri months (not Gregorian) |
+   524→| Gregorian fallback | When user's calendar preference is set to Gregorian, the same component renders Gregorian dates |
+   525→
+   526→### 7.6 Persian Numeral Formatting
+   527→
+   528→The `formatPersianNumeral()` utility (in `packages/shared/src/utils/number.ts`) converts Western Arabic digits to Persian digits:
+   529→
+   530→| Input | Output | Use Case |
+   531→|-------|--------|----------|
+   532→| `1404` | `۱۴۰۴` | Year display in Solar Hijri dates |
+   533→| `1234567` | `۱٬۲۳۴٬۵۶۷` | Large numbers in stat cards and tables |
+   534→| `1,250` | `۱٬۲۵۰` | Token counts, file sizes |
+   535→| `99.5%` | `۹۹٫۵٪` | Percentage displays |
+   536→
+   537→This formatting is applied at the display layer (components), not at the data layer. All API responses use Western Arabic numerals; conversion happens in the UI.
+   538→
+   539→---
+   540→
+   541→## 8. Theme System
+   542→
+   543→HotHoosh supports dark mode and light mode as first-class citizens per PRD Principle #13. Theme preference is per-user, persists across sessions, and respects the system preference by default. The implementation uses CSS custom properties exclusively — Tailwind's `dark:` variant is never used.
+   544→
+   545→### 8.1 Design Token to CSS Variable Mapping
+   546→
+   547→All colors, shadows, and effects are defined as CSS custom properties in `globals.css`. The root `:root` selector defines light mode values; the `[data-theme="dark"]` selector overrides them for dark mode.
+   548→
+   549→| Token Category | Token Name | Light Value | Dark Value | Usage |
+   550→|---------------|------------|-------------|------------|-------|
+   551→| **Background** | `--color-background` | `#FFFFFF` | `#0A0A0F` | Page background, `glass-panel-solid` base |
+   552→| | `--color-background-secondary` | `#F5F5F7` | `#12121A` | Sidebar, card backgrounds |
+   553→| | `--color-background-tertiary` | `#EAEAED` | `#1A1A25` | Hover states, inset areas |
+   554→| **Foreground** | `--color-foreground` | `#1A1A2E` | `#EAEAED` | Primary text |
+   555→| | `--color-foreground-secondary` | `#4A4A5A` | `#9A9AAA` | Secondary text, captions |
+   556→| | `--color-foreground-muted` | `#8A8A9A` | `#6A6A7A` | Disabled text, placeholders |
+   557→| **Accent** | `--color-accent` | `#4F46E5` | `#818CF8` | Primary action color, links, active states |
+   558→| | `--color-accent-hover` | `#4338CA` | `#6366F1` | Hover state for accent elements |
+   559→| | `--color-accent-subtle` | `#EEF2FF` | `#1E1B4B` | Subtle accent backgrounds, badges |
+   560→| **Glass surfaces** | `--glass-panel` | `rgba(255,255,255,0.6)` | `rgba(18,18,26,0.6)` | Standard glass panel |
+   561→| | `--glass-panel-solid` | `rgba(255,255,255,0.95)` | `rgba(10,10,15,0.95)` | Top bar, sidebar |
+   562→| | `--glass-panel-elevated` | `rgba(255,255,255,0.8)` | `rgba(26,26,37,0.8)` | Admin elevated surfaces |
+   563→| | `--glass-panel-data` | `rgba(255,255,255,0.7)` | `rgba(20,20,30,0.7)` | Admin data tables, stat cards |
+   564→| **Borders** | `--color-border` | `#E5E5EA` | `#2A2A3A` | Default borders |
+   565→| | `--color-border-focus` | `--color-accent` | `--color-accent` | Focus ring color |
+   566→| **Shadows** | `--shadow-glass` | `0 4px 30px rgba(0,0,0,0.08)` | `0 4px 30px rgba(0,0,0,0.3)` | Glass panel shadow |
+   567→| **Semantic** | `--color-success` | `#059669` | `#34D399` | Success states, positive trends |
+   568→| | `--color-warning` | `#D97706` | `#FBBF24` | Warning states |
+   569→| | `--color-error` | `#DC2626` | `#F87171` | Error states, destructive actions |
+   570→
+   571→### 8.2 Theme Toggle Mechanism
+   572→
+   573→The theme state is managed by `useThemeStore` (Zustand with `persist` middleware). The store supports three values: `'light'`, `'dark'`, and `'system'`.
+   574→
+   575→| Step | Action |
+   576→|------|--------|
+   577→| 1 | On app load, `useThemeStore` reads from `localStorage`. If no value, defaults to `'system'`. |
+   578→| 2 | If value is `'system'`, the store subscribes to `window.matchMedia('(prefers-color-scheme: dark)')` and updates reactively when the OS theme changes. |
+   579→| 3 | The resolved theme (`'light'` or `'dark'`) is applied to the root `<html>` element via `data-theme` attribute. |
+   580→| 4 | When the user explicitly toggles the theme (via the user menu or settings page), the store updates `localStorage` and sets the `data-theme` attribute. |
+   581→| 5 | All CSS variables resolve based on the `data-theme` attribute. Components never read theme state directly — they consume CSS variables via `var(--color-accent)`. |
+   582→
+   583→Components reference design tokens exclusively through CSS variables, never through hardcoded values. Tailwind utility classes for layout and spacing (`p-4`, `flex`, `gap-2`) are fine. But any color, shadow, or effect must use `var(--token-name)`: `bg-[var(--color-background)]`, `text-[var(--color-foreground)]`, `shadow-[var(--shadow-glass)]`.
+   584→
+   585→### 8.3 No Tailwind `dark:` Variant
+   586→
+   587→Per Engineering Rules §10.1.4, the Tailwind `dark:` variant is never used. All theme-dependent styling uses CSS custom properties. This means:
+   588→
+   589→- `bg-white dark:bg-gray-900` → **WRONG**
+   590→- `bg-[var(--color-background)]` → **CORRECT**
+   591→
+   592→This eliminates an entire class of theme bugs where a developer forgets to add the `dark:` variant to a new class. With CSS variables, theme changes are automatic and complete.
+   593→
+   594→---
+   595→
+   596→## 9. Data Fetching Patterns
+   597→
+   598→HotHoosh uses a dual data fetching strategy: Server Components for page-level data and TanStack Query for client-side data. This hybrid approach minimizes client-side JavaScript while providing interactive, cache-managed data access for dynamic features.
+   599→
+   600→### 9.1 Server Components for Page-Level Data
+   601→
+   602→Page components that display static or semi-static data use React Server Components with `async/await` to fetch data at the server. This data is serialized into the initial HTML, providing fast First Contentful Paint (FCP) and Largest Contentful Paint (LCP) without client-side JavaScript.
+   603→
+   604→| Page | Data Fetched Server-Side | Client Component Handoff |
+   605→|------|------------------------|-------------------------|
+   606→| `/agents` | Agent list via `fetch()` to API | `AgentGallery` (Client) receives agents as props, adds client-side filtering/sorting |
+   607→| `/agents/[agentId]` | Agent detail + configuration | `AgentDetail` (Client) receives agent data, adds test console interactivity |
+   608→| `/knowledge` | Knowledge base list | `KnowledgeList` (Client) receives KBs as props, adds search/filter |
+   609→| `/settings` | User profile + preferences | `SettingsForm` (Client) receives data, handles form submission via RHF + Zod |
+   610→
+   611→### 9.2 TanStack Query for Client-Side Data
+   612→
+   613→Data that requires interactivity (real-time updates, polling, infinite scrolling, optimistic updates) uses TanStack Query hooks in Client Components.
+   614→
+   615→| Hook | Use Case | Configuration |
+   616→|------|----------|-------------|
+   617→| `useQuery` | Single entity fetches (chat messages, agent detail, KB documents) | `staleTime: 5 * 60 * 1000` (5 min) for infrequently changing data; `staleTime: 0` for real-time data |
+   618→| `useInfiniteQuery` | Large lists (audit logs, system logs, chat history) | Cursor-based pagination with `getNextPageParam`. Each page fetches 20 items. |
+   619→| `useMutation` | All write operations (send message, create agent, upload document, update settings) | `onSuccess` invalidates relevant query keys. `onError` shows toast with Persian error message. |
+   620→| `useQueries` | Parallel fetches of independent data (dashboard KPIs) | Used in the admin dashboard to fetch all 6 KPI metrics simultaneously |
+   621→
+   622→### 9.3 Infinite Queries for Lists
+   623→
+   624→Lists that can grow unboundedly (chat messages, audit logs, system logs) use `useInfiniteQuery` with cursor-based pagination:
+   625→
+   626→```typescript
+   627→// Example: Chat messages with infinite scroll
+   628→const {
+   629→  data,
+   630→  fetchNextPage,
+   631→  hasNextPage,
+   632→  isFetchingNextPage,
+   633→} = useInfiniteQuery({
+   634→    queryKey: chatKeys.messages(chatId),
+   635→    queryFn: ({ pageParam }) => chatService.getMessages(chatId, { cursor: pageParam, limit: 50 }),
+   636→    initialPageParam: null as string | null,
+   637→    getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
+   638→    staleTime: 0,
+   639→  });
+   640→```
+   641→
+   642→Messages are rendered in reverse chronological order (newest at bottom). Virtualization via `@tanstack/react-virtual` handles lists exceeding 100 items to maintain scroll performance.
+   643→
+   644→### 9.4 Prefetching on Hover
+   645→
+   646→Per Engineering Rules §10.4.4, navigation links prefetch their target page's data on hover using `queryClient.prefetchQuery()`. This is implemented via a custom `usePrefetchOnHover` hook applied to navigation links:
+   647→
+   648→```typescript
+   649→// Applied to <Link> components in navigation and lists
+   650→<Link
+   651→  href={`/agents/${agent.id}`}
+   652→  onMouseEnter={() =>
+   653→    queryClient.prefetchQuery({
+   654→      queryKey: agentKeys.detail(agent.id),
+   655→      queryFn: () => agentService.getById(agent.id),
+   656→      staleTime: 5 * 60 * 1000,
+   657→    })
+   658→  }
+   659→>
+   660→```
+   661→
+   662→When the user hovers over an agent card, the agent detail data begins fetching. If the user clicks, the data is already in cache and the detail page renders instantly.
+   663→
+   664→### 9.5 Optimistic Updates
+   665→
+   666→Create, update, and delete mutations apply optimistic updates to the TanStack Query cache. The UI reflects the change immediately; the cache is rolled back if the mutation fails.
+   667→
+   668→| Mutation | Optimistic Update | Rollback |
+   669→|----------|------------------|---------|
+   670→| Send message | Append message to `chatKeys.messages(chatId)` cache | Remove appended message |
+   671→| Rename chat session | Update session name in `chatKeys.detail(id)` and `chatKeys.lists()` caches | Restore original name |
+   672→| Delete chat session | Remove session from `chatKeys.lists()` cache | Re-insert session |
+   673→| Toggle agent status | Update `status` field in `agentKeys.detail(id)` and `agentKeys.lists()` caches | Restore original status |
+   674→
+   675→### 9.6 SSE Streaming for AI Responses
+   676→
+   677→AI response streaming uses the native `EventSource` API for Server-Sent Events. The streaming hook manages the SSE connection lifecycle:
+   678→
+   679→| Phase | Action |
+   680→|-------|--------|
+   681→| Connection | User sends message via `POST`. Response includes a `Location` header pointing to the SSE stream. `EventSource` connects to that URL. |
+   682→| Streaming | Server sends `event: token` messages with `data: { content: "...", done: false }`. Hook appends tokens to the last message in the TanStack Query cache. |
+   683→| Completion | Server sends `event: done` with `data: { usage: { inputTokens, outputTokens } }`. Hook finalizes the message and updates the cache. |
+   684→| Error | Server sends `event: error` or connection drops. Hook shows a toast with the Persian error message and offers a retry button. `EventSource` auto-reconnects on disconnection. |
+   685→
+   686→---
+   687→
+   688→## 10. Error Handling
+   689→
+   690→Error handling in HotHoosh operates at four levels: route-level error boundaries, TanStack Query error policies, toast notifications, and API error response handling. Each level has a distinct responsibility and user-facing behavior.
+   691→
+   692→### 10.1 Route-Level Error Boundaries
+   693→
+   694→Every route segment has an `error.tsx` file that serves as a React error boundary. These boundaries catch rendering errors (both Server and Client Components) that occur within their route segment.
+   695→
+   696→| Boundary | Behavior |
+   697→|----------|----------|
+   698→| Root `error.tsx` | Catches unhandled errors. Shows a full-page error with Persian message, retry button, and link to `/chat`. |
+   699→| `(workspace)/error.tsx` | Catches errors within any workspace page. Shows error within the workspace shell (sidebar remains visible and functional). |
+   700→| Feature-level `error.tsx` | Catches errors within a specific feature route (e.g., `chat/error.tsx`). Shows error within the feature's layout (e.g., conversation list remains visible while the main area shows error). |
+   701→
+   702→Error boundaries are reset when the user navigates to a different route segment or clicks the retry button. They do not catch errors in sibling routes — only in descendant routes.
+   703→
+   704→### 10.2 TanStack Query Error Handling
+   705→
+   706→Per Engineering Rules §10.4.4, query errors are caught by React error boundaries, not by `try/catch` in components. The `QueryClient` is configured with:
+   707→
+   708→```typescript
+   709→const queryClient = new QueryClient({
+   710→  defaultOptions: {
+   711→    queries: {
+   712→      retry: 1,
+   713→      refetchOnWindowFocus: false,
+   714→      throwOnError: true, // Errors propagate to error boundaries
+   715→    },
+   716→    mutations: {
+   717→      retry: 0,
+   718→      onError: (error) => {
+   719→        toast.error(t(error.message)); // Persian error message from API
+   720→      },
+   721→    },
+   722→  },
+   723→});
+   724→```
+   725→
+   726→| Scenario | Behavior |
+   727→|----------|----------|
+   728→| Query fails on mount | Error propagates to nearest error boundary. User sees the route-level error UI. |
+   729→| Query fails on refetch | Error propagates to nearest error boundary. Stale data remains visible (TanStack Query keeps the last successful data). |
+   730→| Mutation fails | `onError` callback shows a toast notification with the Persian error message. No error boundary triggered. |
+   731→| Mutation fails with optimistic update | Optimistic update is rolled back. Toast shows the error message. |
+   732→
+   733→### 10.3 API Error Response Format
+   734→
+   735→All API errors follow a standardized JSON structure defined in Engineering Rules §10.1.3:
+   736→
+   737→```json
+   738→{
+   739→  "error": {
+   740→    "code": "AGENT_NOT_FOUND",
+   741→    "message": "عامل هوشمند مورد نظر یافت نشد.",
+   742→    "details": {
+   743→      "agentId": "agent_abc123"
+   744→    }
+   745→  }
+   746→}
+   747→```
+   748→
+   749→The `message` field is in the user's language (Persian by default, English when the user's locale is English). The `code` field is a machine-readable string used for programmatic error handling. The `details` field provides additional context for debugging.
+   750→
+   751→### 10.4 Toast Notifications
+   752→
+   753→Toast notifications are rendered by the toast provider (sonner integration via shadcn/ui) and appear at the bottom-start corner of the viewport (bottom-right in LTR mode, thanks to logical properties). Toasts are used for:
+   754→
+   755→| Trigger | Toast Type | Persian Example |
+   756→|---------|-----------|-----------------|
+   757→| Mutation success | Success (green) | "عامل هوشمند با موفقیت ایجاد شد." (Agent created successfully) |
+   758→| Mutation failure | Error (red) | "خطا در ذخیره تغییرات. لطفاً دوباره تلاش کنید." (Error saving changes. Please try again.) |
+   759→| Background operation complete | Info (blue) | "پردازش سند کامل شد." (Document processing complete) |
+   760→| Copy to clipboard | Success (green) | "در کلیپ‌بورد کپی شد." (Copied to clipboard) |
+   761→
+   762→Toasts auto-dismiss after 5 seconds. Error toasts persist until manually dismissed. All toast text is in the user's current language.
+   763→
+   764→---
+   765→
+   766→## 11. Performance Strategy
+   767→
+   768→HotHoosh targets Core Web Vitals compliance (LCP < 2.5s, FID < 100ms, CLS < 0.1, INP < 200ms) as specified in the PRD §5.1. The performance strategy operates across five dimensions: bundle size, rendering, network, runtime, and visual stability.
+   769→
+   770→### 11.1 Code Splitting and Bundle Budgets
+   771→
+   772→| Strategy | Implementation | Target |
+   773→|----------|---------------|--------|
+   774→| Route-based splitting | Every route is a separate chunk via Next.js App Router automatic code splitting | < 100KB gzipped per route chunk |
+   775→| Dynamic imports for heavy components | `next/dynamic` for ECharts, rich text editors, PDF viewers, and the command palette | Excluded from initial bundle entirely |
+   776→| Shared chunk deduplication | Turborepo and Next.js automatically deduplicate shared dependencies into a single chunk | No duplicate React, Zod, or TanStack Query code |
+   777→| Tree shaking | TypeScript strict mode + ESM ensures dead code elimination. `sideEffects: false` in package.json | Unused code removed at build time |
+   778→
+   779→| Budget | Limit | Enforced By |
+   780→|--------|-------|-------------|
+   781→| Initial JS bundle (first load) | < 200KB gzipped | CI pipeline (bundle analyzer) |
+   782→| Per-route chunk | < 100KB gzipped | CI pipeline (bundle analyzer) |
+   783→| Total JS per page (including lazy) | < 500KB gzipped | CI pipeline (bundle analyzer) |
+   784→| CSS (including design tokens) | < 50KB gzipped | CI pipeline |
+   785→
+   786→### 11.2 Image Optimization
+   787→
+   788→All images use `next/image` with explicit `width` and `height` props to prevent layout shift. Images are served in WebP/AVIF format with automatic format negotiation via the `Accept` header. Below-the-fold images are lazy-loaded (`loading="lazy"`, which is the default for `next/image`). Above-the-fold images (hero, logo) use `priority` for preloading.
+   789→
+   790→### 11.3 Font Loading
+   791→
+   792→Vazirmatn is self-hosted (not loaded from a CDN) to eliminate an external network request. The font file is preloaded via `next/font/local` with `preload: true` and `display: 'swap'`. The `swap` strategy prevents Flash of Invisible Text (FOIT) while ensuring the font loads without blocking rendering. A `font-display: optional` strategy is not used because it would result in Flash of Unstyled Text (FOUT) for Persian content, which is unacceptable for an RTL-native product.
+   793→
+   794→### 11.4 Virtualization
+   795→
+   796→Per Engineering Rules §10.8.1, lists with more than 100 items use virtualization via `@tanstack/react-virtual`. This applies to:
+   797→
+   798→| List | Virtualization Strategy |
+   799→|------|----------------------|
+   800→| Chat messages | Reverse-infinite virtualized list. Only visible messages + overscan buffer (5 items) are rendered. Scroll position is preserved across re-renders. |
+   801→| Audit logs | Forward-infinite virtualized list with cursor-based pagination. |
+   802→| System logs | Forward-infinite virtualized list with SSE-based real-time updates. New items are prepended to the top. |
+   803→| Data tables (admin) | Virtualized rows when total items exceed 100. Pagination is still available as an alternative view. |
+   804→
+   805→### 11.5 Memoization Strategy
+   806→
+   807→Memoization is applied judiciously, only after profiling identifies actual re-render performance issues. The following table defines when each memoization primitive is appropriate:
+   808→
+   809→| Primitive | When to Use | When NOT to Use |
+   810→|-----------|-------------|----------------|
+   811→| `React.memo` | Components that receive complex props (objects, arrays) and re-render infrequently (e.g., `MessageBubble` when siblings stream tokens) | Components that re-render on every parent update anyway (e.g., layout containers) |
+   812→| `useMemo` | Expensive computations (filtering large lists, formatting complex data) | Simple computations (string concatenation, boolean checks) |
+   813→| `useCallback` | Functions passed as props to `React.memo` children | Functions passed to non-memoized children |
+   814→
+   815→### 11.6 Prefetching Strategy
+   816→
+   817→| Trigger | Action |
+   818→|--------|--------|
+   819→| Link hover | `queryClient.prefetchQuery()` for the target page's data (agents, KBs, etc.) |
+   820→| Link in viewport | Next.js built-in viewport-based prefetching for route chunks |
+   821→| Command palette open | Prefetch frequently accessed entities (recent chats, active agents) |
+   822→| Dashboard mount | `useQueries` to fetch all KPI metrics in parallel |
+   823→
+   824→---
+   825→
+   826→## 12. Accessibility Strategy
+   827→
+   828→HotHoosh targets WCAG 2.2 Level AA compliance as a non-negotiable requirement per PRD §5.5. Accessibility is not a retrofit — it is embedded in every component, every interaction pattern, and every design decision from the outset.
+   829→
+   830→### 12.1 Keyboard Navigation
+   831→
+   832→Every interactive element is reachable and operable via keyboard alone. The tab order follows the visual order of the page, which respects the RTL layout (tab progresses from right to left in RTL mode, as per the browser's natural behavior with `dir="rtl"`).
+   833→
+   834→| Pattern | Implementation |
+   835→|---------|---------------|
+   836→| **Focus indicators** | Custom focus rings with minimum 2px offset and 3:1 contrast ratio against the background. The default browser focus outline is never suppressed (`outline: none` is forbidden) without providing a visible replacement. Focus indicators use the `--color-accent` design token. |
+   837→| **Skip navigation** | A visually hidden skip link at the top of every page allows keyboard users to jump to the main content area, bypassing the sidebar and top bar. The link becomes visible on focus. |
+   838→| **Modal focus trapping** | When a dialog opens (via shadcn/ui's Dialog component, built on Radix UI), focus moves to the first focusable element inside the dialog. Tabbing cycles within the dialog. When the dialog closes, focus returns to the trigger element. |
+   839→| **Command palette** | `Cmd+K` / `Ctrl+K` opens the command palette. Arrow keys navigate results. `Enter` selects. `Escape` closes. The command palette is a modal with full focus trapping. |
+   840→| **Chat input** | `Enter` sends the message. `Shift+Enter` inserts a newline. The input is an auto-resizing `<textarea>` with proper `aria-label`. |
+   841→| **Data tables** | `Tab` moves between interactive elements (sort buttons, action menus, checkboxes). `Arrow` keys navigate within the table when in grid navigation mode. |
+   842→
+   843→### 12.2 Screen Reader Support
+   844→
+   845→All content is accessible via screen reader (NVDA on Windows, VoiceOver on macOS/iOS, TalkBack on Android). ARIA attributes supplement semantic HTML — they never replace it.
+   846→
+   847→| Pattern | Implementation |
+   848→|---------|---------------|
+   849→| **Semantic HTML** | `<button>` for actions, `<a>` for navigation, `<nav>` for navigation landmarks, `<main>` for main content, `<aside>` for complementary content. Never `<div onClick>` for interactive elements. |
+   850→| **Image alt text** | All `<img>` elements have descriptive `alt` text in Persian. Decorative images use `alt=""`. |
+   851→| **Icon-only buttons** | Every icon-only button has an `aria-label` in the user's language (e.g., `aria-label="ارسال پیام"` for the send button). |
+   852→| **Live regions** | Chat messages streaming in use `aria-live="polite"`. Toast notifications use `aria-live="polite"`. Critical errors use `aria-live="assertive"`. |
+   853→| **Status announcements** | Loading states that take more than 3 seconds announce their status via `aria-live`: "در حال بارگذاری..." (Loading...). |
+   854→| **Dialog roles** | Modals use `role="dialog"`, `aria-modal="true"`, and `aria-labelledby` pointing to the dialog title. |
+   855→| **Tab interfaces** | Tab bars use `role="tablist"`, `role="tab"` with `aria-selected`, and `role="tabpanel"` with `aria-labelledby` pointing to the controlling tab. |
+   856→| **Data tables** | Tables use `<table>` with proper `<thead>`, `<th scope="col">`, and `<caption>`. Interactive tables use appropriate ARIA grid roles. |
+   857→
+   858→### 12.3 ARIA Patterns for Complex Components
+   859→
+   860→| Component | ARIA Pattern | Key Behaviors |
+   861→|-----------|-------------|---------------|
+   862→| **Chat message list** | `role="log"` with `aria-live="polite"` | New messages are announced. Screen readers can navigate the message history. |
+   863→| **Branch selector** | `role="listbox"` with `role="option"` and `aria-selected` | Each branch is an option. Selected branch is announced. |
+   864→| **Agent selector** | `role="combobox"` with `aria-expanded`, `aria-controls` pointing to the dropdown list | Type-ahead filtering supported. Selected agent announced on change. |
+   865→| **Tenant scope selector (admin)** | `role="combobox"` with hierarchical grouping | Group labels announced. Selection change reloads data with a loading announcement. |
+   866→| **File upload progress** | `role="progressbar"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax` | Progress percentage announced at 25% intervals. Completion announced via live region. |
+   867→
+   868→### 12.4 Visual Accessibility
+   869→
+   870→| Requirement | Implementation |
+   871→|------------|---------------|
+   872→| **Color contrast** | Minimum 4.5:1 for normal text, 3:1 for large text (18px+ or 14px+ bold), 3:1 for non-text UI components against adjacent colors. Verified via automated CI checks. |
+   873→| **No color-only information** | Status indicators always include text or icons in addition to color. A green dot alone is forbidden — it must be paired with a label like "فعال" (Active). |
+   874→| **Text resizing** | All text scales to 200% without loss of content or functionality. No fixed-width containers that clip text. No fixed-height containers that hide overflow. |
+   875→| **Reduced motion** | `prefers-reduced-motion: reduce` media query disables all animations and transitions. State changes become instant. Loading spinners remain as they are functional indicators, not decorative animations. |
+   876→| **Dark mode contrast** | All color pairings in dark mode meet the same contrast requirements as light mode. Dark mode is not a dimmed version of light mode — it is a fully designed, independently validated theme. |
+   877→| **Touch targets** | All interactive elements have minimum 44×44px touch targets on mobile. Dense data tables use spacing or padding to expand hit areas. |
+   878→
+   879→---
+   880→
+   881→## 13. Internationalization
+   882→
+   883→HotHoosh is Persian-first with English as a secondary language. Internationalization is not a plugin or an overlay — it is a foundational architectural decision that affects every layer of the frontend: the document direction, the calendar system, the numeral formatting, and the user interface text.
+   884→
+   885→### 13.1 Language and Direction Defaults
+   886→
+   887→| Aspect | Default (Persian) | Secondary (English) |
+   888→|--------|-------------------|---------------------|
+   889→| Language | Persian (فارسی) | English |
+   890→| Text direction | RTL (`dir="rtl"`) | LTR (`dir="ltr"`) |
+   891→| Calendar | Solar Hijri (شمسی) | Gregorian |
+   892→| Numerals | Persian (۱۲۳) | Western Arabic (123) |
+   893→| Font | Vazirmatn (self-hosted) | Vazirmatn (same font — it includes Latin characters) |
+   894→| Error messages | Persian | English |
+   895→| UI labels | Persian | English |
+   896→
+   897→The user's locale preference is stored in their profile and applied on login. The `useThemeStore` (or a dedicated `useLocaleStore`) manages the current locale and triggers the following changes:
+   898→
+   899→1. The `<html>` element's `dir` attribute changes (`"rtl"` ↔ `"ltr"`).
+   900→2. The `<html>` element's `lang` attribute changes (`"fa"` ↔ `"en"`).
+   901→3. All CSS logical properties automatically adapt to the new direction.
+   902→4. Date displays switch between Solar Hijri and Gregorian formatting.
+   903→5. Numbers switch between Persian and Western Arabic numerals.
+   904→6. All UI text renders in the selected language.
+   905→
+   906→### 13.2 RTL/LTR Switching Mechanism
+   907→
+   908→The switch between RTL and LTR is architectural, not conditional. Components do not contain `if (isRtl)` branches. The mechanism works as follows:
+   909→
+   910→| Layer | Responsibility |
+   911→|-------|---------------|
+   912→| **HTML** | `<html dir="rtl" lang="fa">` or `<html dir="ltr" lang="en">`. The `dir` attribute drives all directional behavior. |
+   913→| **CSS** | All properties use logical values (`margin-inline-start`, `inset-inline-end`). No physical properties exist. Direction change is automatic. |
+   914→| **Tailwind** | All utility classes use logical variants (`ms-4`, `pe-2`, `start-0`, `text-start`). No physical variants (`ml-4`, `pr-2`, `left-0`, `text-left`) exist in the codebase. |
+   915→| **Components** | Components are direction-agnostic. They use `start`/`end` semantics. A sidebar is "at the inline start" — it renders on the right in RTL and on the left in LTR without any component code changes. |
+   916→| **Icons** | Phosphor Icons with RTL mirror support. Directional icons (arrows, chevrons, exit icons) automatically flip when the document direction changes. |
+   917→
+   918→### 13.3 Calendar System
+   919→
+   920→The default calendar for Persian users is Solar Hijri (شمسی), implemented via dayjs with the jalaali-js plugin. The calendar preference is stored in the user's profile and can be toggled in Settings.
+   921→
+   922→| Calendar | Plugin | Format Example | Use Case |
+   923→|----------|--------|---------------|----------|
+   924→| Solar Hijri | `jalaali-js` | `۱۴۰۴/۰۳/۱۵` (jYYYY/jMM/jDD) | Default for Persian users. Used in all date displays, date pickers, and date range filters. |
+   925→| Gregorian | dayjs built-in | `2025-06-06` | Secondary calendar for English users or Persian users who prefer Gregorian. |
+   926→
+   927→The `formatPersianDate()` utility (in `packages/shared/src/utils/date.ts`) provides a consistent formatting API:
+   928→
+   929→- `formatPersianDate(date, 'full')` → "۱۵ خرداد ۱۴۰۴"
+   930→- `formatPersianDate(date, 'short')` → "۱۴۰۴/۰۳/۱۵"
+   931→- `formatPersianDate(date, 'relative')` → "۲ ساعت پیش" (2 hours ago)
+   932→
+   933→Relative time formatting uses Persian units: "ثانیه" (second), "دقیقه" (minute), "ساعت" (hour), "روز" (day), "هفته" (week), "ماه" (month), "سال" (year).
+   934→
+   935→### 13.4 Number Formatting
+   936→
+   937→Number formatting is locale-aware and applied at the display layer:
+   938→
+   939→| Format | Persian Example | English Example | Use Case |
+   940→|--------|----------------|-----------------|----------|
+   941→| Standard | `۱٬۲۳۴٬۵۶۷` | `1,234,567` | User counts, token counts |
+   942→| Currency | `۱۲٬۵۰۰٬۰۰۰ ریال` | `125,000,000 Rial` | Billing amounts, invoices |
+   943→| Percentage | `۹۹٫۵٪` | `99.5%` | Usage ratios, progress bars |
+   944→| Compact | `۱.۲M` | `1.2M` | Dashboard KPIs for large numbers |
+   945→| Calendar year | `۱۴۰۴` | `2025` | Date displays |
+   946→
+   947→The `formatPersianNumeral()` and `formatCurrency()` utilities in `packages/shared` handle conversion. Components call these utilities when rendering numbers; the underlying data always uses Western Arabic numerals.
+   948→
+   949→---
+   950→
+   951→## Appendix A: Document Cross-References
+   952→
+   953→| Document | Relevance |
+   954→|----------|-----------|
+   955→| [PRD.md](./PRD.md) | Product principles (#1 Persian-First, #2 RTL-Native, #13 Dark/Light Mode, #14 Glass Morphism), functional and non-functional requirements |
+   956→| [Architecture.md](./Architecture.md) | §3 Frontend Architecture, §5 Shared Layer, §8 Key Design Decisions (DD-09 through DD-14) |
+   957→| [Engineering-Rules.md](./Engineering-Rules.md) | §10.1.2 React/Next.js rules, §10.1.4 CSS/Tailwind rules, §10.2.2 apps/web folder structure, §10.4.1 frontend architecture rules, §10.4.4 state management rules, §10.7 accessibility, §10.8 performance |
+   958→| [Admin-Panel.md](./Admin-Panel.md) | §9.1–9.2 Admin panel layout, navigation, and design principles |
+   959→| [Information-Architecture.md](./Information-Architecture.md) | Site map, URL structure, navigation model, page types |
+   960→| [Database.md](./Database.md) | Entity schemas that define the data shapes fetched by frontend queries |

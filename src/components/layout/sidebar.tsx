@@ -1,44 +1,40 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface NavItem {
   id: string;
   label: string;
   icon: string;
-  href?: string;
-  badge?: number;
+  href: string;
 }
 
 const WORKSPACE_NAV: NavItem[] = [
-  { id: 'chat', label: 'گفتگو', icon: '💬' },
-  { id: 'agents', label: 'عوامل هوشمند', icon: '🤖' },
-  { id: 'knowledge', label: 'پایگاه دانش', icon: '📚' },
-  { id: 'memory', label: 'حافظه', icon: '🧠' },
-  { id: 'settings', label: 'تنظیمات', icon: '⚙️' },
+  { id: 'chat', label: 'گفتگو', icon: '•', href: '/chat' },
+  { id: 'agents', label: 'عوامل هوشمند', icon: '•', href: '/agents' },
+  { id: 'knowledge', label: 'پایگاه دانش', icon: '•', href: '/knowledge' },
+  { id: 'memory', label: 'حافظه', icon: '•', href: '/memory' },
+  { id: 'settings', label: 'تنظیمات', icon: '•', href: '/settings' },
 ];
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  activeId: string;
-  onNavigate: (id: string) => void;
 }
 
-export function Sidebar({
-  collapsed,
-  onToggle,
-  activeId,
-  onNavigate,
-}: SidebarProps) {
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const pathname = usePathname();
 
-  const handleNav = useCallback(
-    (id: string) => {
-      onNavigate(id);
-    },
-    [onNavigate],
-  );
+  function getActiveId(): string {
+    if (pathname.startsWith('/agents')) return 'agents';
+    if (pathname.startsWith('/knowledge')) return 'knowledge';
+    if (pathname.startsWith('/memory')) return 'memory';
+    if (pathname.startsWith('/settings')) return 'settings';
+    return 'chat';
+  }
+
+  const activeId = getActiveId();
 
   return (
     <aside
@@ -62,10 +58,7 @@ export function Sidebar({
             viewBox="0 0 20 20"
             fill="none"
             className="transition-transform duration-[var(--duration-200)]"
-            style={
-              { transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }
-              // SAFETY: inline style for dynamic rotation based on state
-            }
+            style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
             aria-hidden="true"
           >
             <path
@@ -75,12 +68,14 @@ export function Sidebar({
           </svg>
         </button>
         {!collapsed && (
-          <span
-            className="text-[var(--text-heading-sm)] font-[var(--font-weight-semibold)] tracking-[var(--tracking-tight-xs)]"
-            style={{ fontSize: 'var(--text-heading-sm)' }}
-          >
-            هت‌هوش
-          </span>
+          <Link href="/chat" className="truncate">
+            <span
+              className="text-[var(--text-heading-sm)] font-[var(--font-weight-semibold)] tracking-[var(--tracking-tight-xs)] text-[var(--color-text-primary)]"
+              style={{ fontSize: 'var(--text-heading-sm)' }}
+            >
+              هات‌هوش
+            </span>
+          </Link>
         )}
       </div>
 
@@ -91,11 +86,8 @@ export function Sidebar({
             const isActive = item.id === activeId;
             return (
               <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => handleNav(item.id)}
-                  onMouseEnter={() => setHoveredItem(item.id)}
-                  onMouseLeave={() => setHoveredItem(null)}
+                <Link
+                  href={item.href}
                   aria-current={isActive ? 'page' : undefined}
                   className={
                     'group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] ' +
@@ -104,7 +96,7 @@ export function Sidebar({
                       : 'hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]')
                   }
                 >
-                  {/* Active indicator — border-inline-start for RTL (UI-System §9.2) */}
+                  {/* Active indicator */}
                   {isActive && (
                     <span
                       className="absolute inset-y-0 start-0 w-[3px] rounded-e-full bg-[var(--color-accent)]"
@@ -122,26 +114,7 @@ export function Sidebar({
                       {item.label}
                     </span>
                   )}
-                  {/* Tooltip for collapsed state */}
-                  {collapsed && hoveredItem === item.id && (
-                    <span
-                      className="pointer-events-none absolute start-full ms-2 whitespace-nowrap rounded-md bg-[var(--color-text-primary)] px-2 py-1 text-[var(--color-text-inverse)]"
-                      style={{ fontSize: 'var(--text-caption-sm)' }}
-                      role="tooltip"
-                    >
-                      {item.label}
-                    </span>
-                  )}
-                  {/* Badge */}
-                  {!collapsed && item.badge && item.badge > 0 && (
-                    <span
-                      className="me-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent)] px-1.5 font-[var(--font-weight-medium)]"
-                      style={{ fontSize: 'var(--text-caption-xs)' }}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
+                </Link>
               </li>
             );
           })}

@@ -95,3 +95,43 @@ Stage Summary:
 - Error boundaries with Persian messages and retry action
 - Feature-based organization: features/chat/components/, features/chat/stores/, features/chat/types/
 - Files created: 12 (8 components, 2 layouts, 1 store, 1 types file, 2 pages, 2 loading, 2 error, 1 client)
+
+---
+Task ID: 4
+Agent: Lead Software Architect
+Task: Feature 4 — Agent Gallery & Detail (عوامل هوشمند)
+
+Work Log:
+- Determined Feature 4 scope from Frontend-Architecture.md §4.2 route tree and PRD FR-AGENT-001 through FR-AGENT-008
+- Created agent types file with: Agent, AgentDetail, AgentKnowledgeBinding, AgentToolBinding, AgentMemoryBinding interfaces
+- Created type filter/sort types: AgentTypeFilter, AgentStatusFilter, AgentSortField, SortOrder, AgentFilters
+- Created Persian label/color maps: AGENT_TYPE_LABELS, AGENT_STATUS_LABELS, AGENT_TYPE_COLORS, AGENT_STATUS_COLORS
+- Created 6 mock agents covering all 5 types (chat×2, rag×1, tool_use×2, autonomous×1) and all 3 statuses (active×3, draft×2, deprecated×1)
+- Created MOCK_AGENT_DETAILS with full binding data (knowledge, tools, memory) for each agent
+- Built AgentCard molecule: avatar with type icon, name, type badge, status badge, description (2-line clamp), model name, usage stats, binding indicators (KB/tools/memory)
+- Built AgentGallery organism: search input, type filter pills (6 options), status filter pills (4 options), sort buttons (name/sessions/updated), quick stats row (4 cards), empty state, responsive 3-column grid
+- Built AgentDetail organism with 5 tabs: Config (basic info grid + sampling parameter bars + system prompt display), Knowledge (binding list with threshold/chunks), Tools (binding list with enabled/disabled state), Memory (binding list with type), Test Console
+- Built TestConsole: chat-like panel with streaming dots simulation, auto-scroll, Enter to send, disabled state during streaming
+- Created /agents/page.tsx (Server Component with metadata, passes MOCK_AGENTS to AgentGallery client component)
+- Created /agents/loading.tsx (3-column card skeleton matching gallery layout per Frontend-Arch §4.3)
+- Created /agents/error.tsx (Persian error message, retry + back buttons)
+- Created /agents/[agentId]/page.tsx (Server Component with dynamic metadata, 404 for invalid IDs, passes AgentDetail)
+- Created /agents/[agentId]/loading.tsx (header + tab bar + config skeleton)
+- Created /agents/[agentId]/error.tsx (Persian error message, retry + back to gallery)
+- Migrated Sidebar from callback-based navigation (onNavigate) to real Next.js Link + usePathname for active detection
+- Removed activeNav state and onNavigate prop from WorkspaceShell
+- Fixed brand name in sidebar from هت‌هوش to هات‌هوش
+- All routes verified: /agents 200, /agents/agent-1 200, /agents/agent-2 200, /chat 200, /login 200
+- 0 TypeScript errors in src/
+
+Stage Summary:
+- Agent gallery is fully functional with client-side filtering, sorting, and search
+- 6 mock agents with realistic Persian names, descriptions, and binding data
+- Agent detail page: 5-tab interface (config/knowledge/tools/memory/test console)
+- Test console: interactive chat-like panel with simulated streaming responses
+- Sidebar now uses real Next.js routing (Link + usePathname) instead of callback pattern
+- Loading skeletons match page layouts (per Frontend-Arch §4.3)
+- Error boundaries with Persian messages on all agent routes
+- Feature-based organization: features/agents/{components,types,hooks,stores,services}/
+- Files created: 10 (3 feature components, 1 types file, 6 route files)
+- Files modified: 2 (sidebar.tsx, workspace-shell.tsx)
