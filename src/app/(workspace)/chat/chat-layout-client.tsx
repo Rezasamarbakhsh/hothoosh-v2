@@ -7,7 +7,7 @@ import {
   BarChart3, TrendingUp, FileText, Palette,
 } from 'lucide-react';
 import { useChatUIStore } from '@/features/chat/stores/chat-ui.store';
-import { MOCK_AGENTS, MOCK_MESSAGES } from '@/features/chat/types/chat.types';
+import { MOCK_AGENTS, MOCK_MESSAGES, type ChatMessage } from '@/features/chat/types/chat.types';
 import { cn } from '@/lib/utils';
 
 const SUGGESTIONS = [
@@ -33,12 +33,15 @@ export default function ChatLayoutClient() {
   const [agentOpen, setAgentOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sessions = useChatUIStore((s) => s.sessions);
   const activeSessionId = useChatUIStore((s) => s.activeSessionId);
   const activeAgentId = useChatUIStore((s) => s.activeAgentId);
   const isStreaming = useChatUIStore((s) => s.isStreaming);
+  const messagesMap = useChatUIStore((s) => s.messagesMap);
   const actions = useChatUIStore((s) => s.actions);
 
   const activeSession = useMemo(
@@ -49,10 +52,25 @@ export default function ChatLayoutClient() {
 
   const messages = useMemo(() => {
     if (!activeSessionId) return [];
-    if (activeSessionId.startsWith('new-')) return [];
+    if (activeSessionId.startsWith('new-')) {
+      return messagesMap[activeSessionId] ?? [];
+    }
+    // For mock sessions, use mock data
     if (activeSessionId === 'session-1') return MOCK_MESSAGES;
-    return [];
-  }, [activeSessionId]);
+    return messagesMap[activeSessionId] ?? [];
+  }, [activeSessionId, messagesMap]);
+
+  // Auto-scroll to bottom
+  const scrollToBottom = useCallback(() => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+  }, []);
+
+  // Scroll when messages change
+  useMemo(() => {
+    if (messages.length > 0) scrollToBottom();
+  }, [messages.length, scrollToBottom]);
 
   const grouped = useMemo(() => {
     const filtered = sessions.filter((s) => {
@@ -74,11 +92,84 @@ export default function ChatLayoutClient() {
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }, []);
 
+  async function sendMessage(text: string) {
+    if (!text.trim() || isStreaming) return;
+    setApiError(null);
+
+    // Create session if none
+    let sessionId = activeSessionId;
+    if (!sessionId || sessionId.startsWith('new-') && !(messagesMap[sessionId]?.length > 0)) {
+      sessionId = actions.createSession(text.trim().slice(0, 40));
+    }
+
+    // Add user message to store
+    const userMsg: ChatMessage = {
+      id: 'msg-' + Date.now(),
+      sessionId,
+      parentMessageId: null,
+      branchIndex: 0,
+      role: 'user',
+      content: text.trim(),
+      tokenCount: null,
+      modelId: null,
+      inputTokens: null,
+      outputTokens: null,
+      latencyMs: null,
+      toolCalls: null,
+      createdAt: new Date().toISOString(),
+    };
+    actions.addMessage(sessionId, userMsg);
+    actions.setStreaming(true);
+
+    // Build message history for API
+    const existingMessages = messagesMap[sessionId] ?? [];
+    const apiMessages = [
+      ...existingMessages.filter((m) => m.role === 'user' || m.role === 'assistant').map((m) => ({ role: m.role, content: m.content })),
+      { role: 'user', content: text.trim() },
+    ];
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setApiError(data.error || 'خطای ناشناخته');
+        return;
+      }
+
+      const assistantMsg: ChatMessage = {
+        id: 'msg-' + (Date.now() + 1),
+        sessionId,
+        parentMessageId: userMsg.id,
+        branchIndex: 0,
+        role: 'assistant',
+        content: data.content || 'پاسخی دریافت نشد.',
+        tokenCount: data.usage?.outputTokens ?? null,
+        modelId: data.model ?? null,
+        inputTokens: data.usage?.inputTokens ?? null,
+        outputTokens: data.usage?.outputTokens ?? null,
+        latencyMs: null,
+        toolCalls: null,
+        createdAt: new Date().toISOString(),
+      };
+      actions.addMessage(sessionId, assistantMsg);
+    } catch {
+      setApiError('خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.');
+    } finally {
+      actions.setStreaming(false);
+    }
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const text = inputValue.trim();
     if (!text) return;
-    actions.createSession(text.slice(0, 40));
+    sendMessage(text);
     setInputValue('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }
@@ -112,7 +203,7 @@ export default function ChatLayoutClient() {
     }
   }
 
-  const canSend = inputValue.trim().length > 0;
+  const canSend = inputValue.trim().length > 0 && !isStreaming;
 
   return (
     <div style={{ display: 'flex', height: '100%', width: '100%' }}>
@@ -270,6 +361,15 @@ export default function ChatLayoutClient() {
                   <span>در حال پاسخ‌دهی...</span>
                 </div>
               )}
+              {/* API Error */}
+              {apiError && (
+                <div className="mx-auto max-w-3xl px-4">
+                  <div className="rounded-xl border border-[var(--color-error-500)]/30 bg-[var(--color-error-500)]/5 px-4 py-3 text-[var(--color-error-500)]" style={{ fontSize: 'var(--text-body-sm)', direction: 'rtl', textAlign: 'right' }}>
+                    {apiError}
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center px-4">
@@ -285,7 +385,9 @@ export default function ChatLayoutClient() {
                   return (
                     <button
                       key={item.title}
-                      onClick={() => handleSelectSession(item.sessionId)}
+                      onClick={() => {
+                        actions.setActiveSessionId(item.sessionId);
+                      }}
                       className="flex items-start gap-3 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-4 text-start transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-data)]"
                     >
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-subtle)]">
@@ -320,10 +422,11 @@ export default function ChatLayoutClient() {
                     value={inputValue}
                     onChange={(e) => { setInputValue(e.target.value); adjustHeight(); }}
                     onKeyDown={handleKeyDown}
-                    placeholder="پیام خود را بنویسید..."
+                    placeholder={isStreaming ? 'در حال پاسخ‌دهی...' : 'پیام خود را بنویسید...'}
                     rows={1}
                     dir="auto"
-                    className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
+                    disabled={isStreaming}
+                    className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none disabled:opacity-50"
                     style={{ fontSize: 'var(--text-body-md)', lineHeight: 'var(--leading-body-md)' }}
                     aria-label="message"
                   />

@@ -1,21 +1,20 @@
 import { create } from 'zustand';
-import { MOCK_SESSIONS, type ChatSession } from '@/features/chat/types/chat.types';
+import { MOCK_SESSIONS, type ChatSession, type ChatMessage } from '@/features/chat/types/chat.types';
 
 interface ChatUIState {
   sessions: ChatSession[];
   activeSessionId: string | null;
   activeAgentId: string;
   isStreaming: boolean;
-  isListOpen: boolean;
+  messagesMap: Record<string, ChatMessage[]>;
   actions: {
     setSessions: (s: ChatSession[]) => void;
     setActiveSessionId: (id: string | null) => void;
     deleteSession: (id: string) => void;
     createSession: (title?: string) => string;
+    addMessage: (sessionId: string, msg: ChatMessage) => void;
     setActiveAgentId: (id: string) => void;
     setStreaming: (v: boolean) => void;
-    setListOpen: (v: boolean) => void;
-    toggleList: () => void;
   };
 }
 
@@ -24,15 +23,18 @@ export const useChatUIStore = create<ChatUIState>((set, get) => ({
   activeSessionId: null,
   activeAgentId: 'auto',
   isStreaming: false,
-  isListOpen: false,
+  messagesMap: {},
   actions: {
     setSessions: (sessions) => set({ sessions }),
     setActiveSessionId: (id) => set({ activeSessionId: id }),
     deleteSession: (id) => {
-      const { activeSessionId } = get();
+      const { activeSessionId, messagesMap } = get();
+      const newMap = { ...messagesMap };
+      delete newMap[id];
       set({
         sessions: get().sessions.filter((s) => s.id !== id),
         activeSessionId: activeSessionId === id ? null : activeSessionId,
+        messagesMap: newMap,
       });
     },
     createSession: (title) => {
@@ -59,9 +61,24 @@ export const useChatUIStore = create<ChatUIState>((set, get) => ({
       set({ sessions: [newSession, ...get().sessions], activeSessionId: id });
       return id;
     },
+    addMessage: (sessionId, msg) => {
+      const map = get().messagesMap;
+      const existing = map[sessionId] ?? [];
+      set({
+        messagesMap: { ...map, [sessionId]: [...existing, msg] },
+      });
+      // Update session title and preview
+      if (msg.role === 'user') {
+        set({
+          sessions: get().sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, title: s.id.startsWith('new-') ? msg.content.slice(0, 40) : s.title, lastMessagePreview: msg.content.slice(0, 60), updatedAt: new Date().toISOString(), messageCount: s.messageCount + 1 }
+              : s,
+          ),
+        });
+      }
+    },
     setActiveAgentId: (id) => set({ activeAgentId: id }),
     setStreaming: (v) => set({ isStreaming: v }),
-    setListOpen: (v) => set({ isListOpen: v }),
-    toggleList: () => set((s) => ({ isListOpen: !s.isListOpen })),
   },
 }));

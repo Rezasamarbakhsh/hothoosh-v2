@@ -4,15 +4,16 @@ import bcrypt from 'bcryptjs';
 const db = new PrismaClient();
 
 const COMPANIES = [
-  { name: 'خشکبار کوروش', slug: 'kourosh-dried-fruits', description: 'تولید و فروش انواع خشکبار و آجیل' },
-  { name: 'پروشات', slug: 'proshat', description: 'شرکت بازرگانی پروشات' },
-  { name: 'طلای ناب', slug: 'tala-nab', description: 'طراحی و تولید جواهرات و زیورآلات' },
-  { name: 'هاترو مدیا', slug: 'hatro-media', description: 'آژانس تبلیغات و رسانه دیجیتال' },
-  { name: 'هاترو لجستیک', slug: 'hatro-logistics', description: 'خدمات لجستیک و حمل و نقل' },
-  { name: 'هاترو تک', slug: 'hatro-tech', description: 'توسعه نرم‌افزار و فناوری اطلاعات' },
-  { name: 'هاترو فود', slug: 'hatro-food', description: 'صنایع غذایی و تولید مواد غذایی' },
-  { name: 'هاترو سازه', slug: 'hatro-sazeh', description: 'ساختمان‌سازی و پروژه‌های عمرانی' },
-  { name: 'هاترو انرژی', slug: 'hatro-energy', description: 'تولید و توزیع انرژی‌های تجدیدپذیر' },
+  { name: 'صنعت خشکبار و حبوبات کوروش', slug: 'kourosh-dried-fruits', description: 'تولید و فروش انواع خشکبار و حبوبات' },
+  { name: 'کشت و صنعت برنج کوروش', slug: 'kourosh-rice', description: 'کشت، تولید و فرآوری برنج' },
+  { name: 'فرآورده‌های غذایی پروشات کوروش', slug: 'proshat-food', description: 'تولید فرآورده‌های غذایی پروشات' },
+  { name: 'گلبرگ غذایی کوروش', slug: 'golbarag-food', description: 'تولید محصولات غذایی گلبرگ' },
+  { name: 'هستی آرین تامین', slug: 'hasti-arin', description: 'تامین مواد اولیه و محصولات' },
+  { name: 'طلای ناب کوروش', slug: 'tala-nab', description: 'طراحی و تولید جواهرات و زیورآلات' },
+  { name: 'صنایع غذایی پاکبان', slug: 'pakban-food', description: 'تولید محصولات غذایی پاکبان' },
+  { name: 'فرآورده‌های پروتئینی کوروش', slug: 'kourosh-protein', description: 'تولید فرآورده‌های پروتئینی' },
+  { name: 'صنعت میوه کوروش', slug: 'kourosh-fruit', description: 'تولید و بسته‌بندی میوه' },
+  { name: 'هاترو (توسعه کشت و صنعت کوروش)', slug: 'hatro-kourosh-dev', description: 'شرکت توسعه و فناوری کشت و صنعت کوروش' },
 ];
 
 async function main() {
