@@ -1,0 +1,21 @@
+# Caddy Production Config for HotHoosh
+# Replace hothoosh.example.com with your actual domain
+
+hothoosh.example.com {
+	reverse_proxy hothoosh:3000 {
+		header_up Host {host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+# HTTP fallback (redirects to HTTPS automatically by Caddy)
+:80 {
+	reverse_proxy hothoosh:3000 {
+		header_up Host {host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Real-IP {remote_host}
+	}
+}
