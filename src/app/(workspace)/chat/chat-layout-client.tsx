@@ -18,7 +18,7 @@ import { useChatUIStore } from '@/features/chat/stores/chat-ui.store';
 import { MOCK_AGENTS, MOCK_MESSAGES, MOCK_SESSIONS } from '@/features/chat/types/chat.types';
 import { cn } from '@/lib/utils';
 
-/* ── Suggestion cards for empty state ── */
+/* - Suggestion cards for empty state - */
 const SUGGESTIONS = [
   { icon: BarChart3, title: 'تحلیل بازار خشکبار', desc: 'بررسی وضعیت فروش و رقابت', sessionId: 'session-1' },
   { icon: TrendingUp, title: 'استراتژی بازاریابی پروشات', desc: 'طراحی نقشه راه بازاریابی', sessionId: 'session-4' },
@@ -26,7 +26,7 @@ const SUGGESTIONS = [
   { icon: Palette, title: 'برندسازی طلای ناب', desc: 'طراحی هویت بصری', sessionId: 'session-3' },
 ];
 
-/* ── Time helpers ── */
+/* - Time helpers - */
 function getTimeGroup(dateStr: string): string {
   const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
   if (d < 1) return 'امروز';
@@ -46,7 +46,7 @@ export default function ChatLayoutClient() {
   const router = useRouter();
   const pathname = usePathname();
 
-  /* ── Store ── */
+  /* - Store - */
   const sessions = useChatUIStore((s) => s.sessions);
   const activeSessionId = useChatUIStore((s) => s.activeSessionId);
   const activeAgentId = useChatUIStore((s) => s.activeAgentId);
@@ -59,7 +59,7 @@ export default function ChatLayoutClient() {
   );
   const activeAgent = MOCK_AGENTS.find((a) => a.id === activeAgentId);
 
-  /* ── Messages for active session ── */
+  /* - Messages for active session - */
   const messages = useMemo(() => {
     if (!activeSessionId) return [];
     if (activeSessionId.startsWith('new-')) return [];
@@ -67,7 +67,7 @@ export default function ChatLayoutClient() {
     return [];
   }, [activeSessionId]);
 
-  /* ── Grouped sessions ── */
+  /* - Grouped sessions - */
   const grouped = useMemo(() => {
     const filtered = sessions.filter((s) => {
       if (!search) return true;
@@ -81,7 +81,7 @@ export default function ChatLayoutClient() {
     return g;
   }, [sessions, search]);
 
-  /* ── Handlers ── */
+  /* - Handlers - */
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -134,7 +134,7 @@ export default function ChatLayoutClient() {
   return (
     <div className="flex h-full">
 
-      {/* ── Conversation sidebar ── */
+      {/* - Conversation sidebar - */
       <aside
         className={cn(
           'flex flex-col border-e border-[var(--color-border-default)] bg-[var(--color-surface-solid)] transition-all duration-200',
@@ -252,7 +252,7 @@ export default function ChatLayoutClient() {
         </div>
       </aside>
 
-      {/* ── Main chat area ── */
+      {/* - Main chat area - */
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <div className="flex h-12 items-center justify-between border-b border-[var(--color-border-default)] px-4">
@@ -363,7 +363,7 @@ export default function ChatLayoutClient() {
               )}
             </div>
           ) : (
-            /* ── Empty state ── */
+            /* - Empty state - */
             <div className="flex h-full flex-col items-center justify-center px-4">
               <h1 className="font-[var(--font-weight-bold)] text-[var(--color-text-primary)] tracking-tight" style={{ fontSize: 'var(--text-heading-2xl)' }}>
                 هات‌هوش
@@ -395,7 +395,7 @@ export default function ChatLayoutClient() {
           )}
         </div>
 
-        {/* ── Bottom input with animated AI border ── */}
+        {/* - Bottom input with animated AI border - */}
         <div className="w-full px-6 pb-5 pt-2">
           <div className="mx-auto max-w-3xl">
             {/* Agent pill */}
@@ -452,7 +452,7 @@ export default function ChatLayoutClient() {
         </div>
       </div>
 
-      {/* ── Delete confirmation dialog ── */
+      {/* - Delete confirmation dialog - */
       {deletingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeletingId(null)}>
           <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-solid)] p-6" onClick={(e) => e.stopPropagation()}>
