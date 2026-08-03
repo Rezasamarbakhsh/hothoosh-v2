@@ -22,7 +22,7 @@ RUN bunx prisma generate
 # Build Next.js (standalone output)
 RUN bun run build
 
-# Stage 3: Production
+# Stage 3: Production (Alpine-based, uses adduser -D)
 FROM oven/bun:1 AS runner
 WORKDIR /app
 
@@ -30,9 +30,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# Create non-root user (Alpine syntax)
+RUN addgroup -S -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nextjs
 
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./
@@ -41,8 +41,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy Prisma schema for migrations
-COPY --from=builder /app/prisma ./prisma
+# Copy Prisma client
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
