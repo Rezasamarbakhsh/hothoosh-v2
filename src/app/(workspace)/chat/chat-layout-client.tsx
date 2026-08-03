@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, type KeyboardEvent, type FormEvent } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   Plus, Search, MessageSquare, Trash2, Sparkles, Bot,
   Send, Paperclip, ChevronDown, PanelLeftClose, PanelLeft,
@@ -15,26 +15,24 @@ import {
 } from '@/components/ui/command';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useChatUIStore } from '@/features/chat/stores/chat-ui.store';
-import { MOCK_AGENTS, MOCK_MESSAGES, MOCK_SESSIONS } from '@/features/chat/types/chat.types';
+import { MOCK_AGENTS, MOCK_MESSAGES } from '@/features/chat/types/chat.types';
 import { cn } from '@/lib/utils';
 
-/* - Suggestion cards for empty state - */
 const SUGGESTIONS = [
-  { icon: BarChart3, title: 'تحلیل بازار خشکبار', desc: 'بررسی وضعیت فروش و رقابت', sessionId: 'session-1' },
-  { icon: TrendingUp, title: 'استراتژی بازاریابی پروشات', desc: 'طراحی نقشه راه بازاریابی', sessionId: 'session-4' },
-  { icon: FileText, title: 'گزارش فروش برنج کوروش', desc: 'تحلیل عملکرد فروش', sessionId: 'session-2' },
-  { icon: Palette, title: 'برندسازی طلای ناب', desc: 'طراحی هویت بصری', sessionId: 'session-3' },
+  { icon: BarChart3, title: '\u062a\u062d\u0644\u06cc\u0644 \u0628\u0627\u0632\u0627\u0631 \u062e\u0634\u06a9\u0628\u0627\u0631', desc: '\u0628\u0631\u0631\u0633\u06cc \u0648\u0636\u0639\u06cc\u062a \u0641\u0631\u0648\u0634 \u0648 \u0631\u0642\u0627\u0628\u062a', sessionId: 'session-1' },
+  { icon: TrendingUp, title: '\u0627\u0633\u062a\u0631\u0627\u062a\u0698\u06cc \u0628\u0627\u0632\u0627\u0631\u06cc\u0627\u0628\u06cc \u067e\u0631\u0648\u0634\u0627\u062a', desc: '\u0637\u0631\u0627\u062d\u06cc \u0646\u0642\u0634\u0647 \u0631\u0627\u0647 \u0628\u0627\u0632\u0627\u0631\u06cc\u0627\u0628\u06cc', sessionId: 'session-4' },
+  { icon: FileText, title: '\u06af\u0632\u0627\u0631\u0634 \u0641\u0631\u0648\u0634 \u0628\u0631\u0646\u062c \u06a9\u0648\u0631\u0648\u0634', desc: '\u062a\u062d\u0644\u06cc\u0644 \u0639\u0645\u0644\u06a9\u0631\u062f \u0641\u0631\u0648\u0634', sessionId: 'session-2' },
+  { icon: Palette, title: '\u0628\u0631\u0646\u062f\u0633\u0627\u0632\u06cc \u0637\u0644\u0627\u06cc \u0646\u0627\u0628', desc: '\u0637\u0631\u0627\u062d\u06cc \u0647\u0648\u06cc\u062a \u0628\u0635\u0631\u06cc', sessionId: 'session-3' },
 ];
 
-/* - Time helpers - */
 function getTimeGroup(dateStr: string): string {
   const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-  if (d < 1) return 'امروز';
-  if (d < 2) return 'دیروز';
-  if (d < 7) return 'هفته گذشته';
-  return 'بالاتر';
+  if (d < 1) return '\u0627\u0645\u0631\u0648\u0632';
+  if (d < 2) return '\u062f\u06cc\u0631\u0648\u0632';
+  if (d < 7) return '\u0647\u0641\u062a\u0647 \u06af\u0630\u0634\u062a\u0647';
+  return '\u0628\u0627\u0644\u0627\u062a\u0631';
 }
-const GROUP_ORDER = ['امروز', 'دیروز', 'هفته گذشته', 'بالاتر'];
+const GROUP_ORDER = ['\u0627\u0645\u0631\u0648\u0632', '\u062f\u06cc\u0631\u0648\u0632', '\u0647\u0641\u062a\u0647 \u06af\u0630\u0634\u062a\u0647', '\u0628\u0627\u0644\u0627\u062a\u0631'];
 
 export default function ChatLayoutClient() {
   const [inputValue, setInputValue] = useState('');
@@ -44,9 +42,7 @@ export default function ChatLayoutClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
-  const pathname = usePathname();
 
-  /* - Store - */
   const sessions = useChatUIStore((s) => s.sessions);
   const activeSessionId = useChatUIStore((s) => s.activeSessionId);
   const activeAgentId = useChatUIStore((s) => s.activeAgentId);
@@ -59,7 +55,6 @@ export default function ChatLayoutClient() {
   );
   const activeAgent = MOCK_AGENTS.find((a) => a.id === activeAgentId);
 
-  /* - Messages for active session - */
   const messages = useMemo(() => {
     if (!activeSessionId) return [];
     if (activeSessionId.startsWith('new-')) return [];
@@ -67,7 +62,6 @@ export default function ChatLayoutClient() {
     return [];
   }, [activeSessionId]);
 
-  /* - Grouped sessions - */
   const grouped = useMemo(() => {
     const filtered = sessions.filter((s) => {
       if (!search) return true;
@@ -75,13 +69,12 @@ export default function ChatLayoutClient() {
     });
     const g: Record<string, typeof sessions> = {};
     for (const s of filtered) {
-      const key = s.lastMessageAt ? getTimeGroup(s.lastMessageAt) : 'بالاتر';
+      const key = s.lastMessageAt ? getTimeGroup(s.lastMessageAt) : '\u0628\u0627\u0644\u0627\u062a\u0631';
       (g[key] ??= []).push(s);
     }
     return g;
   }, [sessions, search]);
 
-  /* - Handlers - */
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -93,7 +86,7 @@ export default function ChatLayoutClient() {
     e.preventDefault();
     const text = inputValue.trim();
     if (!text) return;
-    const id = actions.createSession(text.slice(0, 40));
+    actions.createSession(text.slice(0, 40));
     setInputValue('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }
@@ -133,15 +126,12 @@ export default function ChatLayoutClient() {
 
   return (
     <div className="flex h-full">
-
-      {/* - Conversation sidebar - */
       <aside
         className={cn(
           'flex flex-col border-e border-[var(--color-border-default)] bg-[var(--color-surface-solid)] transition-all duration-200',
           sidebarOpen ? 'w-72' : 'w-0 overflow-hidden',
         )}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-3 py-3">
           <button
             onClick={handleNewChat}
@@ -149,18 +139,17 @@ export default function ChatLayoutClient() {
             style={{ fontSize: 'var(--text-caption-sm)' }}
           >
             <Plus className="h-4 w-4" />
-            <span>گفتگوی جدید</span>
+            <span>\u06af\u0641\u062a\u06af\u0648\u06cc \u062c\u062f\u06cc\u062f</span>
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
-            aria-label="بستن"
+            aria-label="close"
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Search */}
         <div className="px-3 pb-2">
           <div className="relative">
             <Search className="absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
@@ -168,16 +157,15 @@ export default function ChatLayoutClient() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو..."
+              placeholder="\u062c\u0633\u062a\u062c\u0648..."
               className="w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] py-2 pe-3 ps-9 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-[var(--color-primary-500)]"
               style={{ fontSize: 'var(--text-caption-sm)' }}
             />
           </div>
         </div>
 
-        {/* Session list */}
         <ScrollArea className="flex-1 px-2">
-          <nav className="space-y-4 pb-4" aria-label="لیست گفتگوها">
+          <nav className="space-y-4 pb-4" aria-label="conversations">
             {GROUP_ORDER.map((group) => {
               const items = grouped[group];
               if (!items?.length) return null;
@@ -201,13 +189,13 @@ export default function ChatLayoutClient() {
                           <MessageSquare className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-[var(--font-weight-medium)]" style={{ fontSize: 'var(--text-caption-sm)' }}>
-                              {session.title || 'بدون عنوان'}
+                              {session.title || '\u0628\u062f\u0648\u0646 \u0639\u0646\u0648\u0627\u0646'}
                             </p>
                           </div>
                           <button
                             onClick={(e) => handleDeleteSession(e, session.id)}
                             className="hidden h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-text-muted)] opacity-0 transition-all group-hover:flex group-hover:opacity-100 hover:bg-[var(--color-error-500)]/10 hover:text-[var(--color-error-500)]"
-                            aria-label="حذف"
+                            aria-label="delete"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -220,17 +208,16 @@ export default function ChatLayoutClient() {
             })}
             {sessions.length === 0 && (
               <p className="px-3 py-8 text-center text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-sm)' }}>
-                گفتگویی یافت نشد
+                \u06af\u0641\u062a\u06af\u0648\u06cc \u06cc\u0627\u0641\u062a \u0646\u0634\u062f
               </p>
             )}
           </nav>
         </ScrollArea>
 
-        {/* Bottom: Agent pills */}
         <div className="border-t border-[var(--color-border-default)] px-3 py-3">
           <div className="flex items-center gap-1.5 mb-2">
             <Sparkles className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
-            <span className="text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>دستیار پیش‌فرض</span>
+            <span className="text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>\u062f\u0633\u062a\u06cc\u0627\u0631 \u067e\u06cc\u0634\u200c\u0641\u0631\u0636</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {MOCK_AGENTS.map((agent) => (
@@ -245,97 +232,53 @@ export default function ChatLayoutClient() {
                 )}
                 style={{ fontSize: 'var(--text-caption-xs)' }}
               >
-                {agent.id === 'auto' ? 'خودکار' : agent.name.replace('PTA ', '')}
+                {agent.id === 'auto' ? '\u062e\u0648\u062f\u06a9\u0627\u0631' : agent.name.replace('PTA ', '')}
               </button>
             ))}
           </div>
         </div>
       </aside>
 
-      {/* - Main chat area - */
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <div className="flex h-12 items-center justify-between border-b border-[var(--color-border-default)] px-4">
-          <div className="flex items-center gap-2">
-            {!sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
-                aria-label="باز کردن تاریخچه"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </button>
-            )}
-            <span className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-sm)' }}>
-              {activeSession?.title ?? 'هات‌هوش'}
-            </span>
-          </div>
-
-          {/* PTA selector */}
-          <Popover open={agentOpen} onOpenChange={setAgentOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-primary-500)]"
-                style={{ fontSize: 'var(--text-caption-sm)' }}
-              >
-                {activeAgentId === 'auto' ? <Sparkles className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
-                <span>{activeAgent?.name ?? 'تشخیص خودکار'}</span>
-                <ChevronDown className="h-3 w-3" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-0" align="end" side="bottom" sideOffset={8}>
-              <Command>
-                <CommandInput placeholder="جستجوی دستیار..." />
-                <CommandList className="max-h-64">
-                  <CommandEmpty>دستیاری یافت نشد</CommandEmpty>
-                  {MOCK_AGENTS.map((agent) => (
-                    <CommandItem
-                      key={agent.id}
-                      onSelect={() => { actions.setActiveAgentId(agent.id); setAgentOpen(false); }}
-                      className="flex items-center gap-3 px-3 py-2.5"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-subtle)]">
-                        {agent.id === 'auto' ? <Sparkles className="h-4 w-4 text-[var(--color-text-muted)]" /> : <Bot className="h-4 w-4 text-[var(--color-text-muted)]" />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-caption-sm)' }}>{agent.name}</p>
-                        {agent.description && (
-                          <p className="truncate text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>{agent.description}</p>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+        <div className="flex h-12 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
+              aria-label="open sidebar"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+          )}
+          <span className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-sm)' }}>
+            {activeSession?.title ?? '\u0647\u0627\u062a\u200c\u0647\u0648\u0634'}
+          </span>
         </div>
 
-        {/* Messages or Empty state */}
         <div className="flex-1 overflow-y-auto">
           {activeSessionId && messages.length > 0 ? (
             <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
               {messages.map((msg) => (
                 <div key={msg.id} className={cn('flex gap-3', msg.role === 'user' ? 'flex-row-reverse' : '')}>
-                  {/* Avatar */}
                   <div className={cn(
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-[var(--font-weight-semibold)]',
                     msg.role === 'user'
                       ? 'bg-[var(--color-primary-500)]/15 text-[var(--color-primary-400)]'
                       : 'bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]',
                   )}>
-                    {msg.role === 'user' ? 'ش' : 'AI'}
+                    {msg.role === 'user' ? '\u0634' : 'AI'}
                   </div>
-                  {/* Content */}
-                  <div className={cn(
-                    'max-w-[80%] rounded-2xl px-4 py-3',
-                    msg.role === 'user'
-                      ? 'bg-[var(--color-primary-500)]/10 text-[var(--color-text-primary)]'
-                      : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]',
-                  )} style={{ fontSize: 'var(--text-body-sm)', lineHeight: 'var(--leading-body-md)' }}>
+                  <div
+                    className={cn(
+                      'max-w-[80%] rounded-2xl px-4 py-3',
+                      msg.role === 'user'
+                        ? 'bg-[var(--color-primary-500)]/10 text-[var(--color-text-primary)]'
+                        : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]',
+                    )}
+                    style={{ fontSize: 'var(--text-body-sm)', lineHeight: 'var(--leading-body-md)' }}
+                  >
                     {msg.content.split('\n').map((line, i) => {
                       if (!line) return <br key={i} />;
-                      // Simple markdown bold
                       const parts = line.split(/(\*\*[^*]+\*\*)/g);
                       return (
                         <p key={i} className={i > 0 ? 'mt-2' : ''}>
@@ -358,18 +301,17 @@ export default function ChatLayoutClient() {
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-primary-400)]" style={{ animationDelay: '150ms' }} />
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-primary-400)]" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span>در حال پاسخ‌دهی...</span>
+                  <span>\u062f\u0631 \u062d\u0627\u0644 \u067e\u0627\u0633\u062e\u200c\u062f\u0647\u06cc...</span>
                 </div>
               )}
             </div>
           ) : (
-            /* - Empty state - */
             <div className="flex h-full flex-col items-center justify-center px-4">
               <h1 className="font-[var(--font-weight-bold)] text-[var(--color-text-primary)] tracking-tight" style={{ fontSize: 'var(--text-heading-2xl)' }}>
-                هات‌هوش
+                \u0647\u0627\u062a\u200c\u0647\u0648\u0634
               </h1>
               <p className="mt-3 text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-lg)' }}>
-                چگونه می‌توانم کمکتان کنم؟
+                \u0686\u06af\u0648\u0646\u0647 \u0645\u06cc\u200c\u062a\u0648\u0627\u0646\u0645 \u06a9\u0645\u06a9\u062a\u0627\u0646 \u06a9\u0646\u0645\u061f
               </p>
               <div className="mt-8 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
                 {SUGGESTIONS.map((item) => {
@@ -395,25 +337,54 @@ export default function ChatLayoutClient() {
           )}
         </div>
 
-        {/* - Bottom input with animated AI border - */}
         <div className="w-full px-6 pb-5 pt-2">
           <div className="mx-auto max-w-3xl">
-            {/* Agent pill */}
-            <div className="mb-2 flex justify-start">
-              <span className="flex items-center gap-1.5 rounded-full px-3 py-1 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>
-                {activeAgentId === 'auto' ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                <span>{activeAgent?.name ?? 'تشخیص خودکار'}</span>
-              </span>
-            </div>
+            <Popover open={agentOpen} onOpenChange={setAgentOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="mb-2 flex items-center gap-1.5 rounded-full px-3 py-1 border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary-500)] hover:text-[var(--color-text-secondary)]"
+                  style={{ fontSize: 'var(--text-caption-xs)' }}
+                >
+                  {activeAgentId === 'auto' ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                  <span>{activeAgent?.name ?? '\u062a\u0634\u062e\u06cc\u0635 \u062e\u0648\u062f\u06a9\u0627\u0631'}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0" align="start" side="top" sideOffset={8}>
+                <Command>
+                  <CommandInput placeholder="\u062c\u0633\u062a\u062c\u0648\u06cc \u062f\u0633\u062a\u06cc\u0627\u0631..." />
+                  <CommandList className="max-h-64">
+                    <CommandEmpty>\u062f\u0633\u062a\u06cc\u0627\u0631\u06cc \u06cc\u0627\u0641\u062a \u0646\u0634\u062f</CommandEmpty>
+                    {MOCK_AGENTS.map((agent) => (
+                      <CommandItem
+                        key={agent.id}
+                        onSelect={() => { actions.setActiveAgentId(agent.id); setAgentOpen(false); }}
+                        className="flex items-center gap-3 px-3 py-2.5"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-subtle)]">
+                          {agent.id === 'auto' ? <Sparkles className="h-4 w-4 text-[var(--color-text-muted)]" /> : <Bot className="h-4 w-4 text-[var(--color-text-muted)]" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-caption-sm)' }}>{agent.name}</p>
+                          {agent.description && (
+                            <p className="truncate text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>{agent.description}</p>
+                          )}
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
 
-            {/* Input with animated border */}
             <div className="relative rounded-2xl p-[2px] ai-border">
               <form onSubmit={handleSubmit}>
                 <div className="flex items-end gap-2 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-4 py-3">
                   <button
                     type="button"
                     className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
-                    aria-label="پیوست فایل"
+                    aria-label="attach"
                   >
                     <Paperclip className="h-5 w-5" />
                   </button>
@@ -422,12 +393,12 @@ export default function ChatLayoutClient() {
                     value={inputValue}
                     onChange={(e) => { setInputValue(e.target.value); adjustHeight(); }}
                     onKeyDown={handleKeyDown}
-                    placeholder="پیام خود را بنویسید..."
+                    placeholder="\u067e\u06cc\u0627\u0645 \u062e\u0648\u062f \u0631\u0627 \u0628\u0646\u0648\u06cc\u0633\u06cc\u062f..."
                     rows={1}
                     dir="auto"
                     className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
                     style={{ fontSize: 'var(--text-body-md)', lineHeight: 'var(--leading-body-md)' }}
-                    aria-label="متن پیام"
+                    aria-label="message"
                   />
                   <button
                     type="submit"
@@ -438,7 +409,7 @@ export default function ChatLayoutClient() {
                         ? 'bg-[var(--color-primary-500)] text-[var(--color-text-inverse)] hover:bg-[var(--color-primary-600)] shadow-sm'
                         : 'text-[var(--color-text-disabled)] cursor-not-allowed',
                     )}
-                    aria-label="ارسال"
+                    aria-label="send"
                   >
                     <Send className="h-4 w-4" />
                   </button>
@@ -446,32 +417,31 @@ export default function ChatLayoutClient() {
               </form>
             </div>
             <p className="mt-2 text-center text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>
-              Enter برای ارسال · Shift+Enter برای خط جدید
+              Enter \u0628\u0631\u0627\u06cc \u0627\u0631\u0633\u0627\u0644 · Shift+Enter \u0628\u0631\u0627\u06cc \u062e\u0637 \u062c\u062f\u06cc\u062f
             </p>
           </div>
         </div>
       </div>
 
-      {/* - Delete confirmation dialog - */
       {deletingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeletingId(null)}>
           <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-solid)] p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-md)' }}>حذف گفتگو</h3>
-            <p className="mt-2 text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-sm)' }}>آیا از حذف این گفتگو مطمئن هستید؟</p>
+            <h3 className="font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-md)' }}>\u062d\u0630\u0641 \u06af\u0641\u062a\u06af\u0648</h3>
+            <p className="mt-2 text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-sm)' }}>\u0622\u06cc\u0627 \u0627\u0632 \u062d\u0630\u0641 \u0627\u06cc\u0646 \u06af\u0641\u062a\u06af\u0648 \u0645\u0637\u0645\u0626\u0646 \u0647\u0633\u062a\u06cc\u062f\u061f</p>
             <div className="mt-5 flex items-center justify-end gap-3">
               <button
                 onClick={() => setDeletingId(null)}
                 className="rounded-lg border border-[var(--color-border-default)] px-4 py-2 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
                 style={{ fontSize: 'var(--text-caption-sm)' }}
               >
-                انصراف
+                \u0627\u0646\u0635\u0631\u0627\u0641
               </button>
               <button
                 onClick={confirmDelete}
                 className="rounded-lg bg-[var(--color-error-500)] px-4 py-2 font-[var(--font-weight-medium)] text-white transition-colors hover:bg-[var(--color-error-600)]"
                 style={{ fontSize: 'var(--text-caption-sm)' }}
               >
-                حذف
+                \u062d\u0630\u0641
               </button>
             </div>
           </div>
