@@ -1,5 +1,7 @@
 'use client';
 
+import { ThemeToggle } from '@/components/theme/theme-toggle';
+
 interface TopBarProps {
   onMobileMenuToggle: () => void;
 }
@@ -46,8 +48,10 @@ export function TopBar({ onMobileMenuToggle }: TopBarProps) {
         </button>
       </div>
 
-      {/* Spacer on mobile */}
-      <div className='lg:hidden' />
+      {/* Right actions: theme toggle */}
+      <div className='flex items-center gap-1 lg:ms-auto'>
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

@@ -11,20 +11,20 @@ import { MOCK_AGENTS, MOCK_MESSAGES } from '@/features/chat/types/chat.types';
 import { cn } from '@/lib/utils';
 
 const SUGGESTIONS = [
-  { icon: BarChart3, title: '\u062a\u062d\u0644\u06cc\u0644 \u0628\u0627\u0632\u0627\u0631 \u062e\u0634\u06a9\u0628\u0627\u0631', desc: '\u0628\u0631\u0631\u0633\u06cc \u0648\u0636\u0639\u06cc\u062a \u0641\u0631\u0648\u0634 \u0648 \u0631\u0642\u0627\u0628\u062a', sessionId: 'session-1' },
-  { icon: TrendingUp, title: '\u0627\u0633\u062a\u0631\u0627\u062a\u0698\u06cc \u0628\u0627\u0632\u0627\u0631\u06cc\u0627\u0628\u06cc \u067e\u0631\u0648\u0634\u0627\u062a', desc: '\u0637\u0631\u0627\u062d\u06cc \u0646\u0642\u0634\u0647 \u0631\u0627\u0647 \u0628\u0627\u0632\u0627\u0631\u06cc\u0627\u0628\u06cc', sessionId: 'session-4' },
-  { icon: FileText, title: '\u06af\u0632\u0627\u0631\u0634 \u0641\u0631\u0648\u0634 \u0628\u0631\u0646\u062c \u06a9\u0648\u0631\u0648\u0634', desc: '\u062a\u062d\u0644\u06cc\u0644 \u0639\u0645\u0644\u06a9\u0631\u062f \u0641\u0631\u0648\u0634', sessionId: 'session-2' },
-  { icon: Palette, title: '\u0628\u0631\u0646\u062f\u0633\u0627\u0632\u06cc \u0637\u0644\u0627\u06cc \u0646\u0627\u0628', desc: '\u0637\u0631\u0627\u062d\u06cc \u0647\u0648\u06cc\u062a \u0628\u0635\u0631\u06cc', sessionId: 'session-3' },
+  { icon: BarChart3, title: 'تحلیل بازار خشکبار', desc: 'بررسی وضعیت فروش و رقابت', sessionId: 'session-1' },
+  { icon: TrendingUp, title: 'استراتژی بازاریابی پروشات', desc: 'طراحی نقشه راه بازاریابی', sessionId: 'session-4' },
+  { icon: FileText, title: 'گزارش فروش برنج کوروش', desc: 'تحلیل عملکرد فروش', sessionId: 'session-2' },
+  { icon: Palette, title: 'برندسازی طلای ناب', desc: 'طراحی هویت بصری', sessionId: 'session-3' },
 ];
 
-const GROUP_ORDER = ['\u0627\u0645\u0631\u0648\u0632', '\u062f\u06cc\u0631\u0648\u0632', '\u0647\u0641\u062a\u0647 \u06af\u0630\u0634\u062a\u0647', '\u0628\u0627\u0644\u0627\u062a\u0631'];
+const GROUP_ORDER = ['امروز', 'دیروز', 'هفته گذشته', 'بالاتر'];
 
 function getTimeGroup(dateStr: string): string {
   const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-  if (d < 1) return '\u0627\u0645\u0631\u0648\u0632';
-  if (d < 2) return '\u062f\u06cc\u0631\u0648\u0632';
-  if (d < 7) return '\u0647\u0641\u062a\u0647 \u06af\u0630\u0634\u062a\u0647';
-  return '\u0628\u0627\u0644\u0627\u062a\u0631';
+  if (d < 1) return 'امروز';
+  if (d < 2) return 'دیروز';
+  if (d < 7) return 'هفته گذشته';
+  return 'بالاتر';
 }
 
 export default function ChatLayoutClient() {
@@ -61,7 +61,7 @@ export default function ChatLayoutClient() {
     });
     const g: Record<string, typeof sessions> = {};
     for (const s of filtered) {
-      const key = s.lastMessageAt ? getTimeGroup(s.lastMessageAt) : '\u0628\u0627\u0644\u0627\u062a\u0631';
+      const key = s.lastMessageAt ? getTimeGroup(s.lastMessageAt) : 'بالاتر';
       (g[key] ??= []).push(s);
     }
     return g;
@@ -129,7 +129,7 @@ export default function ChatLayoutClient() {
             style={{ fontSize: 'var(--text-caption-sm)' }}
           >
             <Plus className="h-4 w-4" />
-            <span>\u06af\u0641\u062a\u06af\u0648\u06cc \u062c\u062f\u06cc\u062f</span>
+            <span>گفتگوی جدید</span>
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -147,7 +147,7 @@ export default function ChatLayoutClient() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="\u062c\u0633\u062a\u062c\u0648..."
+              placeholder="جستجو..."
               className="w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] py-2 pe-3 ps-9 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-[var(--color-primary-500)]"
               style={{ fontSize: 'var(--text-caption-sm)' }}
             />
@@ -179,7 +179,7 @@ export default function ChatLayoutClient() {
                           <MessageSquare className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-[var(--font-weight-medium)]" style={{ fontSize: 'var(--text-caption-sm)' }}>
-                              {session.title || '\u0628\u062f\u0648\u0646 \u0639\u0646\u0648\u0627\u0646'}
+                              {session.title || 'بدون عنوان'}
                             </p>
                           </div>
                           <button
@@ -198,7 +198,7 @@ export default function ChatLayoutClient() {
             })}
             {sessions.length === 0 && (
               <p className="px-3 py-8 text-center text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-sm)' }}>
-                \u06af\u0641\u062a\u06af\u0648\u06cc \u06cc\u0627\u0641\u062a \u0646\u0634\u062f
+                گفتگوی یافت نشد
               </p>
             )}
           </nav>
@@ -217,7 +217,7 @@ export default function ChatLayoutClient() {
             </button>
           )}
           <span className="truncate font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-sm)' }}>
-            {activeSession?.title ?? '\u0647\u0627\u062a\u200c\u0647\u0648\u0634'}
+            {activeSession?.title ?? 'هات‌هوش'}
           </span>
         </div>
 
@@ -232,7 +232,7 @@ export default function ChatLayoutClient() {
                       ? 'bg-[var(--color-primary-500)]/15 text-[var(--color-primary-400)]'
                       : 'bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]',
                   )}>
-                    {msg.role === 'user' ? '\u0634' : 'AI'}
+                    {msg.role === 'user' ? 'ش' : 'AI'}
                   </div>
                   <div
                     className={cn(
@@ -267,17 +267,17 @@ export default function ChatLayoutClient() {
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-primary-400)]" style={{ animationDelay: '150ms' }} />
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--color-primary-400)]" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span>\u062f\u0631 \u062d\u0627\u0644 \u067e\u0627\u0633\u062e\u200c\u062f\u0647\u06cc...</span>
+                  <span>در حال پاسخ‌دهی...</span>
                 </div>
               )}
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center px-4">
               <h1 className="font-[var(--font-weight-bold)] text-[var(--color-text-primary)] tracking-tight" style={{ fontSize: 'var(--text-heading-2xl)' }}>
-                \u0647\u0627\u062a\u200c\u0647\u0648\u0634
+                هات‌هوش
               </h1>
               <p className="mt-3 text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-lg)' }}>
-                \u0686\u06af\u0648\u0646\u0647 \u0645\u06cc\u200c\u062a\u0648\u0627\u0646\u0645 \u06a9\u0645\u06a9\u062a\u0627\u0646 \u06a9\u0646\u0645\u061f
+                چگونه می‌توانم کمکتان کنم؟
               </p>
               <div className="mt-8 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
                 {SUGGESTIONS.map((item) => {
@@ -305,9 +305,9 @@ export default function ChatLayoutClient() {
 
         <div className="w-full px-6 pb-4 pt-2">
           <div className="mx-auto max-w-3xl">
-            <div className="relative rounded-2xl p-[2px] ai-border">
+            <div className="relative rounded-2xl ai-border">
               <form onSubmit={handleSubmit}>
-                <div className="flex items-end gap-2 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-4 py-3">
+                <div className="flex items-end gap-2 rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] px-4 py-3">
                   <button
                     type="button"
                     className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)]"
@@ -320,7 +320,7 @@ export default function ChatLayoutClient() {
                     value={inputValue}
                     onChange={(e) => { setInputValue(e.target.value); adjustHeight(); }}
                     onKeyDown={handleKeyDown}
-                    placeholder="\u067e\u06cc\u0627\u0645 \u062e\u0648\u062f \u0631\u0627 \u0628\u0646\u0648\u06cc\u0633\u06cc\u062f..."
+                    placeholder="پیام خود را بنویسید..."
                     rows={1}
                     dir="auto"
                     className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
@@ -352,7 +352,7 @@ export default function ChatLayoutClient() {
                   style={{ fontSize: 'var(--text-caption-xs)' }}
                 >
                   {activeAgentId === 'auto' ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                  <span>{activeAgent?.name ?? '\u062a\u0634\u062e\u06cc\u0635 \u062e\u0648\u062f\u06a9\u0627\u0631'}</span>
+                  <span>{activeAgent?.name ?? 'تشخیص خودکار'}</span>
                   <ChevronDown className="h-3 w-3" />
                 </button>
                 {agentOpen && (
@@ -360,7 +360,7 @@ export default function ChatLayoutClient() {
                     <div className="px-2 py-1.5">
                       <input
                         type="text"
-                        placeholder="\u062c\u0633\u062a\u062c\u0648\u06cc \u062f\u0633\u062a\u06cc\u0627\u0631..."
+                        placeholder="جستجوی دستیار..."
                         className="w-full rounded-md bg-[var(--color-surface-subtle)] px-2 py-1.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
                         style={{ fontSize: 'var(--text-caption-sm)' }}
                       />
@@ -400,22 +400,22 @@ export default function ChatLayoutClient() {
       {deletingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeletingId(null)}>
           <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-solid)] p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-md)' }}>\u062d\u0630\u0641 \u06af\u0641\u062a\u06af\u0648</h3>
-            <p className="mt-2 text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-sm)' }}>\u0622\u06cc\u0627 \u0627\u0632 \u062d\u0630\u0641 \u0627\u06cc\u0646 \u06af\u0641\u062a\u06af\u0648 \u0645\u0637\u0645\u0626\u0646 \u0647\u0633\u062a\u06cc\u062f\u061f</p>
+            <h3 className="font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-md)' }}>حذف گفتگو</h3>
+            <p className="mt-2 text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-sm)' }}>آیا از حذف این گفتگو مطمئن هستید؟</p>
             <div className="mt-5 flex items-center justify-end gap-3">
               <button
                 onClick={() => setDeletingId(null)}
                 className="rounded-lg border border-[var(--color-border-default)] px-4 py-2 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-subtle)]"
                 style={{ fontSize: 'var(--text-caption-sm)' }}
               >
-                \u0627\u0646\u0635\u0631\u0627\u0641
+                انصراف
               </button>
               <button
                 onClick={confirmDelete}
                 className="rounded-lg bg-[var(--color-error-500)] px-4 py-2 font-[var(--font-weight-medium)] text-white transition-colors hover:bg-[var(--color-error-600)]"
                 style={{ fontSize: 'var(--text-caption-sm)' }}
               >
-                \u062d\u0630\u0641
+                حذف
               </button>
             </div>
           </div>

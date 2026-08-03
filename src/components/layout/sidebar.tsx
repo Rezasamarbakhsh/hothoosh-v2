@@ -12,10 +12,7 @@ import {
   Brain,
   ShieldCheck,
   LogOut,
-  Moon,
-  Sun,
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
 
 interface NavItem {
   id: string;
@@ -41,7 +38,6 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { theme, setTheme } = useTheme();
 
   const isAdmin = (session?.user as Record<string, unknown>)?.role === 'admin';
   const userName = (session?.user as Record<string, unknown>)?.name as string | undefined;
@@ -152,23 +148,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* Bottom section: Theme toggle + Profile */}
+      {/* Bottom section: Profile */}
       <div className='border-t border-[var(--color-border-default)] px-2 py-2'>
-        {/* Theme toggle */}
-        <button
-          type='button'
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-secondary)]'
-          aria-label='تغییر تم'
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          {!collapsed && (
-            <span style={{ fontSize: 'var(--text-caption-sm)' }}>
-              {theme === 'dark' ? 'حالت روشن' : 'حالت تاریک'}
-            </span>
-          )}
-        </button>
-
         {/* Profile row */}
         <Link
           href='/profile'
