@@ -10,7 +10,6 @@ import {
   Database,
   Brain,
   ShieldCheck,
-  ChevronRight,
   LogOut,
   Moon,
   Sun,
@@ -66,22 +65,22 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={
-        'glass-panel-solid flex h-full flex-col transition-[width] duration-[var(--duration-300)] ease-[var(--ease-out)] ' +
+        'flex h-full flex-col border-e border-[var(--color-border-default)] bg-[var(--color-surface-solid)] transition-[width] duration-[var(--duration-300)] ease-[var(--ease-out)] ' +
         (collapsed ? 'w-16' : 'w-64')
       }
       aria-label='ناوبری اصلی'
     >
       {/* Logo area */}
-      <div className='flex h-14 items-center gap-3 border-b border-[var(--color-border-default)] px-4'>
+      <div className='flex h-14 items-center gap-3 px-3'>
         <button
           type='button'
           onClick={onToggle}
           aria-label={collapsed ? 'باز کردن نوار کناری' : 'بستن نوار کناری'}
-          className='flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]'
+          className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]'
         >
           <svg
-            width='20'
-            height='20'
+            width='18'
+            height='18'
             viewBox='0 0 20 20'
             fill='none'
             className='transition-transform duration-[var(--duration-200)]'
@@ -97,7 +96,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {!collapsed && (
           <Link href='/chat' className='truncate'>
             <span
-              className='text-[var(--text-heading-sm)] font-[var(--font-weight-semibold)] tracking-[var(--tracking-tight-xs)] text-[var(--color-text-primary)]'
+              className='font-[var(--font-weight-bold)] tracking-[var(--tracking-tight-xs)] text-[var(--color-text-primary)]'
               style={{ fontSize: 'var(--text-heading-sm)' }}
             >
               هات‌هوش
@@ -106,9 +105,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       </div>
 
-      {/* Nav items */}
-      <nav className='flex-1 overflow-y-auto px-2 py-3'>
-        <ul className='flex flex-col gap-1' role='list'>
+      {/* Nav items — vertically centered area */}
+      <nav className='flex-1 overflow-y-auto px-2 py-2'>
+        <ul className='flex flex-col gap-0.5' role='list'>
           {visibleNav.map((item) => {
             const isActive = item.id === activeId;
             return (
@@ -117,23 +116,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   href={item.href}
                   aria-current={isActive ? 'page' : undefined}
                   className={
-                    'group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] ' +
+                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--color-text-secondary)] transition-all duration-[var(--duration-150)] ' +
                     (isActive
-                      ? 'bg-[var(--color-surface-subtle)] text-[var(--color-text-primary)]'
+                      ? 'bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)]'
                       : 'hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]')
                   }
                 >
-                  {isActive && (
-                    <span
-                      className='absolute inset-y-0 start-0 w-[3px] rounded-e-full bg-[var(--color-primary-500)]'
-                      aria-hidden='true'
-                    />
-                  )}
                   <span className='shrink-0 h-5 w-5' aria-hidden='true'>{item.icon}</span>
                   {!collapsed && (
                     <span
                       className='truncate font-[var(--font-weight-medium)]'
-                      style={{ fontSize: 'var(--text-body-md)' }}
+                      style={{ fontSize: 'var(--text-body-sm)' }}
                     >
                       {item.label}
                     </span>
@@ -145,13 +138,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* Bottom: Profile + Actions */}
-      <div className='border-t border-[var(--color-border-default)]'>
+      {/* Bottom section: Theme toggle + Profile */}
+      <div className='border-t border-[var(--color-border-default)] px-2 py-2'>
         {/* Theme toggle */}
         <button
           type='button'
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className='flex w-full items-center gap-3 px-4 py-2.5 text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]'
+          className='flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-secondary)]'
           aria-label='تغییر تم'
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -163,11 +156,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </button>
 
         {/* Profile row */}
-        <div className='flex items-center gap-3 px-4 py-3'>
+        <div className='flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)]'>
           {/* Avatar */}
           <div
-            className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-100)] font-[var(--font-weight-semibold)] text-[var(--color-primary-500)]'
-            style={{ fontSize: 'var(--text-body-sm)' }}
+            className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-500)]/15 font-[var(--font-weight-semibold)] text-[var(--color-primary-400)]'
+            style={{ fontSize: 'var(--text-caption-sm)' }}
           >
             {initial}
           </div>
@@ -193,11 +186,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <button
             type='button'
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-error-100)] hover:text-[var(--color-error-500)]'
+            className='flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-error-500)]/10 hover:text-[var(--color-error-500)]'
             aria-label='خروج از حساب'
             title='خروج'
           >
-            <LogOut size={16} />
+            <LogOut size={15} />
           </button>
         </div>
       </div>

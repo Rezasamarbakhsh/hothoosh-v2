@@ -6,13 +6,13 @@ interface TopBarProps {
 
 export function TopBar({ onMobileMenuToggle }: TopBarProps) {
   return (
-    <header className='glass-panel-solid flex h-14 shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border-default)] px-4'>
+    <header className='flex h-12 shrink-0 items-center justify-between gap-4 px-4'>
       {/* Mobile hamburger */}
       <button
         type='button'
         onClick={onMobileMenuToggle}
         aria-label='منوی موبایل'
-        className='flex h-9 w-9 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] lg:hidden'
+        className='flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] lg:hidden'
       >
         <svg width='20' height='20' viewBox='0 0 20 20' fill='currentColor' aria-hidden='true'>
           <path
@@ -28,7 +28,7 @@ export function TopBar({ onMobileMenuToggle }: TopBarProps) {
         <button
           type='button'
           aria-label='جستجوی سریع'
-          className='flex h-9 flex-1 max-w-md items-center gap-2 rounded-md border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:border-[var(--color-border-strong)]'
+          className='flex h-9 flex-1 max-w-md items-center gap-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] px-3 text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:border-[var(--color-border-strong)]'
         >
           <svg width='16' height='16' viewBox='0 0 16 16' fill='none' aria-hidden='true'>
             <path
@@ -45,6 +45,9 @@ export function TopBar({ onMobileMenuToggle }: TopBarProps) {
           </kbd>
         </button>
       </div>
+
+      {/* Spacer on mobile */}
+      <div className='lg:hidden' />
     </header>
   );
 }
