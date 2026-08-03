@@ -60,3 +60,38 @@ Stage Summary:
 - Registration requires invitation token (PRD FR-AUTH-001)
 - 0 TypeScript errors in src/
 - Files created: 10 (3 page.tsx, 3 form.tsx, 2 layouts, 1 schema, 1 component)
+
+---
+Task ID: 3
+Agent: Lead Software Architect
+Task: Feature 3 — Chat System (Layout, List, Session, Messages, Input)
+
+Work Log:
+- Created chat feature directory structure: features/chat/{components,hooks,stores,types,services}
+- Built chat types: ChatMessage, ChatSession, AgentSummary, ToolCall interfaces with mock data
+- Built chat UI Zustand store (useChatUIStore) with streaming/list/agent selectors
+- Built ConversationList component: search, session groups (active/archived), relative time, agent badge
+- Built MessageBubble component: user/assistant/system variants, bold markdown, timestamps, streaming dots, avatar, RTL
+- Built ChatInput component: auto-resize textarea, Enter/Shift+Enter, attachment button placeholder, send button with streaming state, keyboard hint
+- Built ChatEmptyState component for no-selection state
+- Created chat layout (split view: calc(100dvh - 57px) with conversation list + main area)
+- Created chat list page (page.tsx + chat-list-client.tsx) with Persian session cards, glass-panel-elevated
+- Created chat session page (page.tsx + chat-session-client.tsx) with split view, message history, simulated send
+- Created loading.tsx skeletons for both chat list and chat session (per Frontend-Arch §4.3)
+- Created error.tsx boundaries for both routes (Persian error messages, retry/back actions)
+- Used force-dynamic for [chatId] route
+- All chat routes verified: /chat 200, /chat/session-1 (compiles)
+- 0 TypeScript errors in src/
+
+Stage Summary:
+- Chat system UI is complete and functional with mock data
+- Split-view layout: 272px conversation list (desktop) + scrollable message area + fixed input
+- Message bubbles: RTL-aware (user right/primary, assistant left/elevated), bold markdown, timestamps
+- Chat input: auto-resize, Enter to send, streaming state, disabled state
+- Conversation list: search, grouped by status, relative time in Persian
+- Mock data: 3 sessions (2 active, 1 archived), 4 messages (2 user, 2 assistant), 3 agents
+- Simulated send: user message → streaming dots (1.5s) → assistant response
+- Loading skeletons match page layout structure (per Frontend-Arch §4.3)
+- Error boundaries with Persian messages and retry action
+- Feature-based organization: features/chat/components/, features/chat/stores/, features/chat/types/
+- Files created: 12 (8 components, 2 layouts, 1 store, 1 types file, 2 pages, 2 loading, 2 error, 1 client)
