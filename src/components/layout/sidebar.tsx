@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -95,12 +96,25 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </button>
         {!collapsed && (
           <Link href='/chat' className='truncate'>
-            <span
-              className='font-[var(--font-weight-bold)] tracking-[var(--tracking-tight-xs)] text-[var(--color-text-primary)]'
-              style={{ fontSize: 'var(--text-heading-sm)' }}
-            >
-              هات‌هوش
-            </span>
+            <Image
+              src='/hothoosh.png'
+              alt='هات‌هوش'
+              width={400}
+              height={121}
+              className='h-7 w-auto'
+              priority
+            />
+          </Link>
+        )}
+        {collapsed && (
+          <Link href='/chat' className='shrink-0'>
+            <Image
+              src='/hothoosh.png'
+              alt='هات‌هوش'
+              width={400}
+              height={121}
+              className='h-7 w-auto'
+            />
           </Link>
         )}
       </div>

@@ -1,19 +1,11 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, type KeyboardEvent, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Plus, Search, MessageSquare, Trash2, Sparkles, Bot,
   Send, Paperclip, ChevronDown, PanelLeftClose, PanelLeft,
   BarChart3, TrendingUp, FileText, Palette,
 } from 'lucide-react';
-import {
-  Popover, PopoverTrigger, PopoverContent,
-} from '@/components/ui/popover';
-import {
-  Command, CommandInput, CommandList, CommandItem, CommandEmpty,
-} from '@/components/ui/command';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useChatUIStore } from '@/features/chat/stores/chat-ui.store';
 import { MOCK_AGENTS, MOCK_MESSAGES } from '@/features/chat/types/chat.types';
 import { cn } from '@/lib/utils';
@@ -25,6 +17,8 @@ const SUGGESTIONS = [
   { icon: Palette, title: '\u0628\u0631\u0646\u062f\u0633\u0627\u0632\u06cc \u0637\u0644\u0627\u06cc \u0646\u0627\u0628', desc: '\u0637\u0631\u0627\u062d\u06cc \u0647\u0648\u06cc\u062a \u0628\u0635\u0631\u06cc', sessionId: 'session-3' },
 ];
 
+const GROUP_ORDER = ['\u0627\u0645\u0631\u0648\u0632', '\u062f\u06cc\u0631\u0648\u0632', '\u0647\u0641\u062a\u0647 \u06af\u0630\u0634\u062a\u0647', '\u0628\u0627\u0644\u0627\u062a\u0631'];
+
 function getTimeGroup(dateStr: string): string {
   const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
   if (d < 1) return '\u0627\u0645\u0631\u0648\u0632';
@@ -32,7 +26,6 @@ function getTimeGroup(dateStr: string): string {
   if (d < 7) return '\u0647\u0641\u062a\u0647 \u06af\u0630\u0634\u062a\u0647';
   return '\u0628\u0627\u0644\u0627\u062a\u0631';
 }
-const GROUP_ORDER = ['\u0627\u0645\u0631\u0648\u0632', '\u062f\u06cc\u0631\u0648\u0632', '\u0647\u0641\u062a\u0647 \u06af\u0630\u0634\u062a\u0647', '\u0628\u0627\u0644\u0627\u062a\u0631'];
 
 export default function ChatLayoutClient() {
   const [inputValue, setInputValue] = useState('');
@@ -41,7 +34,6 @@ export default function ChatLayoutClient() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const router = useRouter();
 
   const sessions = useChatUIStore((s) => s.sessions);
   const activeSessionId = useChatUIStore((s) => s.activeSessionId);
@@ -104,7 +96,6 @@ export default function ChatLayoutClient() {
 
   function handleNewChat() {
     actions.setActiveSessionId(null);
-    router.push('/chat');
   }
 
   function handleDeleteSession(e: React.MouseEvent, id: string) {
@@ -124,7 +115,7 @@ export default function ChatLayoutClient() {
   const canSend = inputValue.trim().length > 0;
 
   return (
-    <div className="flex h-full">
+    <div style={{ display: 'flex', height: '100%', width: '100%' }}>
       <aside
         className={cn(
           'flex flex-col border-e border-[var(--color-border-default)] bg-[var(--color-surface-solid)] transition-all duration-200',
@@ -163,7 +154,7 @@ export default function ChatLayoutClient() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 px-2">
+        <div className="flex-1 overflow-y-auto px-2">
           <nav className="space-y-4 pb-4" aria-label="conversations">
             {GROUP_ORDER.map((group) => {
               const items = grouped[group];
@@ -211,10 +202,10 @@ export default function ChatLayoutClient() {
               </p>
             )}
           </nav>
-        </ScrollArea>
+        </div>
       </aside>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <div className="flex h-10 items-center gap-2 border-b border-[var(--color-border-default)] px-4">
           {!sidebarOpen && (
             <button
@@ -230,7 +221,7 @@ export default function ChatLayoutClient() {
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {activeSessionId && messages.length > 0 ? (
             <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
               {messages.map((msg) => (
@@ -353,44 +344,54 @@ export default function ChatLayoutClient() {
               </form>
             </div>
             <div className="mt-2 flex items-center justify-center">
-              <Popover open={agentOpen} onOpenChange={setAgentOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-secondary)]"
-                    style={{ fontSize: 'var(--text-caption-xs)' }}
-                  >
-                    {activeAgentId === 'auto' ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
-                    <span>{activeAgent?.name ?? '\u062a\u0634\u062e\u06cc\u0635 \u062e\u0648\u062f\u06a9\u0627\u0631'}</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="center" side="bottom" sideOffset={4}>
-                  <Command>
-                    <CommandInput placeholder="\u062c\u0633\u062a\u062c\u0648\u06cc \u062f\u0633\u062a\u06cc\u0627\u0631..." />
-                    <CommandList className="max-h-64">
-                      <CommandEmpty>\u062f\u0633\u062a\u06cc\u0627\u0631\u06cc \u06cc\u0627\u0641\u062a \u0646\u0634\u062f</CommandEmpty>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAgentOpen(!agentOpen)}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-secondary)]"
+                  style={{ fontSize: 'var(--text-caption-xs)' }}
+                >
+                  {activeAgentId === 'auto' ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                  <span>{activeAgent?.name ?? '\u062a\u0634\u062e\u06cc\u0635 \u062e\u0648\u062f\u06a9\u0627\u0631'}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {agentOpen && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-solid)] p-1 shadow-lg">
+                    <div className="px-2 py-1.5">
+                      <input
+                        type="text"
+                        placeholder="\u062c\u0633\u062a\u062c\u0648\u06cc \u062f\u0633\u062a\u06cc\u0627\u0631..."
+                        className="w-full rounded-md bg-[var(--color-surface-subtle)] px-2 py-1.5 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
+                        style={{ fontSize: 'var(--text-caption-sm)' }}
+                      />
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
                       {MOCK_AGENTS.map((agent) => (
-                        <CommandItem
+                        <button
                           key={agent.id}
-                          onSelect={() => { actions.setActiveAgentId(agent.id); setAgentOpen(false); }}
-                          className="flex items-center gap-3 px-3 py-2.5"
+                          onClick={() => { actions.setActiveAgentId(agent.id); setAgentOpen(false); }}
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors',
+                            activeAgentId === agent.id
+                              ? 'bg-[var(--color-primary-500)]/10 text-[var(--color-primary-400)]'
+                              : 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]',
+                          )}
                         >
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-subtle)]">
                             {agent.id === 'auto' ? <Sparkles className="h-4 w-4 text-[var(--color-text-muted)]" /> : <Bot className="h-4 w-4 text-[var(--color-text-muted)]" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-caption-sm)' }}>{agent.name}</p>
+                            <p className="font-[var(--font-weight-medium)]" style={{ fontSize: 'var(--text-caption-sm)' }}>{agent.name}</p>
                             {agent.description && (
                               <p className="truncate text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>{agent.description}</p>
                             )}
                           </div>
-                        </CommandItem>
+                        </button>
                       ))}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
