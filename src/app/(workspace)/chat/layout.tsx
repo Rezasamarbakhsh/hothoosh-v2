@@ -11,7 +11,7 @@ export default function ChatLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-[calc(100dvh-57px)] overflow-hidden">
+    <div className='flex h-dvh overflow-hidden'>
       {children}
     </div>
   );

@@ -169,13 +169,13 @@ export function AgentGallery({ agents }: AgentGalleryProps) {
             className="font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]"
             style={{ fontSize: 'var(--text-heading-lg)' }}
           >
-            عوامل هوشمند
+            دستیاران هوشمند
           </h2>
           <span
             className="rounded-full bg-[var(--color-surface-subtle)] px-2.5 py-0.5 font-[var(--font-weight-medium)] text-[var(--color-text-secondary)]"
             style={{ fontSize: 'var(--text-caption-sm)' }}
           >
-            {agents.length} عامل
+            {agents.length} دستیار هوشمند
           </span>
         </div>
         <button
@@ -190,14 +190,14 @@ export function AgentGallery({ agents }: AgentGalleryProps) {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M8 2a6 6 0 100 12A6 6 0 008 2zM7 4.5h2v4H7v-4zm0 5.5h2v1.5H7V10z" fill="currentColor" />
           </svg>
-          عامل جدید
+          دستیار هوشمند جدید
         </button>
       </div>
 
       {/* Quick stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="glass-panel-solid rounded-lg p-3">
-          <p className="text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-sm)' }}>کل عوامل</p>
+          <p className="text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-sm)' }}>کل دستیاران</p>
           <p className="mt-1 font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-heading-sm)' }}>{agents.length}</p>
         </div>
         <div className="glass-panel-solid rounded-lg p-3">
@@ -231,14 +231,14 @@ export function AgentGallery({ agents }: AgentGalleryProps) {
             type="text"
             value={filters.search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="جستجوی عوامل..."
+            placeholder="جستجوی دستیاران..."
             className={
               'w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] ' +
               'ps-9 pe-3 py-2 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] ' +
               'transition-colors duration-[var(--duration-150)] focus:border-[var(--color-accent)] focus:outline-none'
             }
             style={{ fontSize: 'var(--text-body-sm)' }}
-            aria-label="جستجوی عوامل"
+            aria-label="جستجوی دستیاران"
           />
         </div>
         <SortButton
@@ -288,10 +288,10 @@ export function AgentGallery({ agents }: AgentGalleryProps) {
             <path d="M18 24h12M24 18v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
           <p className="mt-4 font-[var(--font-weight-medium)] text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-md)' }}>
-            عاملی یافت نشد
+            دستیار هوشمندی یافت نشد
           </p>
           <p className="mt-1 text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-body-sm)' }}>
-            فیلترها را تغییر دهید یا عامل جدیدی ایجاد کنید
+            فیلترها را تغییر دهید یا دستیار هوشمند جدیدی ایجاد کنید
           </p>
         </div>
       ) : (

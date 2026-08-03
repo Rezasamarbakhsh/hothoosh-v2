@@ -73,7 +73,7 @@ function TestConsole({ agentName }: { agentName: string }) {
 
     setTimeout(() => {
       const responses = [
-        `این یک پاسخ آزمایشی از ${agentName} است. این عامل هنوز در حالت پیش‌نویس است و پاسخ‌های واقعی پس از راه‌اندازی ارائه خواهد شد.`,
+        `این یک پاسخ آزمایشی از ${agentName} است. این دستیار هوشمند هنوز در حالت پیش‌نویس است و پاسخ‌های واقعی پس از راه‌اندازی ارائه خواهد شد.`,
         `سلام! من ${agentName} هستم. سیستم در حال آماده‌سازی است.`,
         `در حال پردازش درخواست شما هستم... (حالت آزمایشی)`,
       ];
@@ -107,7 +107,7 @@ function TestConsole({ agentName }: { agentName: string }) {
               <path d="M14 20h12M20 14v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <p className="mt-3 text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-body-sm)' }}>
-              پیامی ارسال کنید تا عملکرد عامل را آزمایش کنید
+              پیامی ارسال کنید تا عملکرد دستیار هوشمند را آزمایش کنید
             </p>
           </div>
         )}
@@ -201,7 +201,7 @@ function ConfigTab({ agent }: { agent: AgentDetailType }) {
           اطلاعات پایه
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FieldRow label="نام عامل" value={agent.name} />
+          <FieldRow label="نام دستیار" value={agent.name} />
           <FieldRow label="نوع" value={AGENT_TYPE_LABELS[agent.agentType]} />
           <FieldRow label="وضعیت" value={AGENT_STATUS_LABELS[agent.status]} />
           <FieldRow label="مدل" value={agent.modelName} />
@@ -249,7 +249,7 @@ function KnowledgeTab({ bindings }: { bindings: AgentKnowledgeBinding[] }) {
       <EmptyTab
         icon="\u{1F4DA}"
         title="پایگاه دانشی متصل نیست"
-        description="برای اتصال پایگاه دانش به این عامل، از بخش تنظیمات اقدام کنید."
+        description="برای اتصال پایگاه دانش به این دستیار هوشمند، از بخش تنظیمات اقدام کنید."
       />
     );
   }
@@ -287,7 +287,7 @@ function ToolsTab({ bindings }: { bindings: AgentToolBinding[] }) {
       <EmptyTab
         icon="\u{1F527}"
         title="ابزاری متصل نیست"
-        description="برای اتصال ابزار به این عامل، از بخش تنظیمات اقدام کنید."
+        description="برای اتصال ابزار به این دستیار هوشمند، از بخش تنظیمات اقدام کنید."
       />
     );
   }
@@ -340,7 +340,7 @@ function MemoryTab({ bindings }: { bindings: AgentMemoryBinding[] }) {
       <EmptyTab
         icon="\u{1F9E0}"
         title="بسته حافظه‌ای متصل نیست"
-        description="برای اتصال بسته حافظه به این عامل، از بخش تنظیمات اقدام کنید."
+        description="برای اتصال بسته حافظه به این دستیار هوشمند، از بخش تنظیمات اقدام کنید."
       />
     );
   }
@@ -417,7 +417,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
     <div className="flex flex-col gap-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-sm)' }} aria-label="مسیر ناوبری">
-        <Link href="/agents" className="transition-colors hover:text-[var(--color-accent)]">عوامل هوشمند</Link>
+        <Link href="/agents" className="transition-colors hover:text-[var(--color-accent)]">دستیاران هوشمند</Link>
         <span aria-hidden="true">/</span>
         <span className="text-[var(--color-text-primary)]">{agent.name}</span>
       </nav>
@@ -527,7 +527,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
       <div
         className="flex items-center gap-1 border-b border-[var(--color-border-default)] overflow-x-auto"
         role="tablist"
-        aria-label="بخش‌های جزئیات عامل"
+        aria-label="بخش‌های جزئیات دستیار هوشمند"
       >
         {TABS.map((tab) => {
           const isActive = tab.id === activeTab;

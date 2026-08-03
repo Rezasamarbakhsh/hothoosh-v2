@@ -21,10 +21,10 @@ export default function AgentsError({
         <path d="M24 14v10m0 6v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
       <h2 className="mt-4 font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-heading-md)' }}>
-        خطا در بارگذاری عوامل هوشمند
+        خطا در بارگذاری دستیاران هوشمند
       </h2>
       <p className="mt-2 max-w-md text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-sm)' }}>
-        در بارگذاری لیست عوامل هوشمند مشکلی پیش آمده است. لطفا دوباره تلاش کنید.
+        در بارگذاری لیست دستیاران هوشمند مشکلی پیش آمده است. لطفا دوباره تلاش کنید.
       </p>
       <div className="mt-6 flex items-center gap-3">
         <button
@@ -46,7 +46,7 @@ export default function AgentsError({
           }
           style={{ fontSize: 'var(--text-body-sm)' }}
         >
-          بازگشت به لیست عوامل
+          بازگشت به لیست دستیاران
         </Link>
       </div>
     </div>

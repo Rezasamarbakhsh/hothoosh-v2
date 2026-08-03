@@ -18,7 +18,7 @@ interface ChatUIState {
 export const useChatUIStore = create<ChatUIState>((set) => ({
   isStreaming: false,
   isListOpen: false,
-  activeAgentId: 'agent-1',
+  activeAgentId: 'auto',
   actions: {
     setStreaming: (v) => set({ isStreaming: v }),
     setListOpen: (v) => set({ isListOpen: v }),

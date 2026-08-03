@@ -320,7 +320,7 @@ function VersionsTab({ detail }: { detail: MemoryPackDetailType }) {
 function BindingsTab({ detail, agentTypeLabels }: { detail: MemoryPackDetailType; agentTypeLabels: Record<string, string> }) {
   if (detail.boundAgents.length === 0) {
     return (
-      <EmptyState message='این بسته حافظه به هیچ عامل هوشمندی متصل نیست.' />
+      <EmptyState message='این بسته حافظه به هیچ دستیار هوشمندی متصل نیست.' />
     );
   }
 
@@ -379,7 +379,7 @@ function UsageTab({ detail }: { detail: MemoryPackDetailType }) {
           </div>
           <div>
             <p className='text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-caption-sm)' }}>
-              عوامل متصل
+              دستیاران متصل
             </p>
             <p className='mt-1 font-[var(--font-weight-bold)] text-[var(--color-text-primary)]' style={{ fontSize: 'var(--text-heading-xl)' }}>
               {formatNumber(detail.boundAgentCount)}

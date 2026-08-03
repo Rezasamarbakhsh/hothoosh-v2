@@ -3,7 +3,7 @@ import { MOCK_AGENTS } from '@/features/agents/types/agent.types';
 import { AgentGallery } from '@/features/agents/components/agent-gallery';
 
 export const metadata: Metadata = {
-  title: 'عوامل هوشمند — هات‌هوش',
+  title: 'دستیاران هوشمند — هات‌هوش',
 };
 
 export default function AgentsPage() {

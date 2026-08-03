@@ -2,20 +2,24 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import { FileText, Upload, Plus } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import {
- type KnowledgeBaseDetail as KBDetailType,
- type KnowledgeDocument,
- type KnowledgeChunk,
- type SearchResult,
- KB_STATUS_LABELS,
- KB_TYPE_LABELS,
- KB_STATUS_COLORS,
- KB_TYPE_COLORS,
- DOC_STATUS_LABELS,
- DOC_STATUS_COLORS,
- FILE_TYPE_ICONS,
- CHUNKING_STRATEGY_LABELS,
- MOCK_SEARCH_RESULTS,
+  type KnowledgeBaseDetail as KBDetailType,
+  type KnowledgeDocument,
+  type KnowledgeChunk,
+  type SearchResult,
+  KB_STATUS_LABELS,
+  KB_TYPE_LABELS,
+  KB_STATUS_COLORS,
+  KB_TYPE_COLORS,
+  DOC_STATUS_LABELS,
+  DOC_STATUS_COLORS,
+  FILE_TYPE_ICONS,
+  CHUNKING_STRATEGY_LABELS,
+  MOCK_SEARCH_RESULTS,
 } from '../types/knowledge.types';
 
 interface KBDetailProps {
@@ -215,7 +219,7 @@ function SearchTestTab({ kbName }: { kbName: string }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-            placeholder="مثلا: چگونه یک جلسه گفتگو ایجاد کنم؟"
+            placeholder="مثلا: محصولات کوروش چه شرکت‌هایی را شامل می‌شود؟"
             dir="auto"
             className={
               'mt-1.5 w-full rounded-lg border border-[var(--color-border-default)] ' +
@@ -363,6 +367,73 @@ function SettingsTab({ kb }: { kb: KBDetailType }) {
   );
 }
 
+// --- Add Knowledge Card ---
+function AddKnowledgeCard() {
+  const [textContent, setTextContent] = useState('');
+
+  return (
+    <div className="glass-panel-solid rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Plus className="h-4 w-4 text-[var(--color-accent)]" />
+        <h2 className="font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]" style={{ fontSize: 'var(--text-body-md)' }}>
+          افزودن دانش
+        </h2>
+      </div>
+      <Tabs defaultValue="text" dir="rtl">
+        <TabsList className="bg-[var(--color-surface-subtle)]">
+          <TabsTrigger value="text" className="gap-1.5 data-[state=active]:text-[var(--color-accent)] data-[state=active]:bg-[var(--color-surface-elevated)]">
+            <FileText className="h-4 w-4" />
+            افزودن متن
+          </TabsTrigger>
+          <TabsTrigger value="file" className="gap-1.5 data-[state=active]:text-[var(--color-accent)] data-[state=active]:bg-[var(--color-surface-elevated)]">
+            <Upload className="h-4 w-4" />
+            آپلود فایل
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="text" className="mt-4">
+          <Textarea
+            value={textContent}
+            onChange={(e) => setTextContent(e.target.value)}
+            placeholder="متن مورد نظر خود را اینجا وارد یا جای‌گذاری کنید..."
+            dir="auto"
+            className="min-h-[120px] resize-y border-[var(--color-border-default)] bg-[var(--color-surface-subtle)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:ring-[var(--color-accent)]"
+          />
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-sm)' }}>
+              {textContent.length > 0 ? `${textContent.length} کاراکتر` : ''}
+            </span>
+            <Button
+              type="button"
+              disabled={!textContent.trim()}
+              className="gap-2 bg-[var(--color-accent)] text-[var(--color-text-inverse)] hover:bg-[var(--color-accent)]/90 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ fontSize: 'var(--text-body-sm)' }}
+            >
+              <Plus className="h-4 w-4" />
+              افزودن به پایگاه دانش
+            </Button>
+          </div>
+        </TabsContent>
+        <TabsContent value="file" className="mt-4">
+          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[var(--color-border-default)] p-8 transition-colors hover:border-[var(--color-accent)] cursor-pointer">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-surface-subtle)] mb-3">
+              <Upload className="h-5 w-5 text-[var(--color-text-muted)]" />
+            </div>
+            <p className="font-[var(--font-weight-medium)] text-[var(--color-text-secondary)]" style={{ fontSize: 'var(--text-body-sm)' }}>
+              فایل‌ها را اینجا بکشید و رها کنید
+            </p>
+            <p className="mt-1 text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-sm)' }}>
+              یا کلیک کنید برای انتخاب فایل
+            </p>
+            <p className="mt-2 text-[var(--color-text-muted)]" style={{ fontSize: 'var(--text-caption-xs)' }}>
+              PDF, DOCX, TXT, MD, HTML, CSV, JSON — حداکثر ۵۰ مگابایت
+            </p>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 // --- Shared ---
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (
@@ -429,7 +500,7 @@ export function KBDetail({ kb }: KBDetailProps) {
               {kb.boundAgentCount > 0 && (
                 <>
                   <span aria-hidden="true">|</span>
-                  <span className="text-[var(--color-accent)]">{kb.boundAgentCount} عامل متصل</span>
+                  <span className="text-[var(--color-accent)]">{kb.boundAgentCount} دستیار هوشمند متصل</span>
                 </>
               )}
             </div>
@@ -446,6 +517,9 @@ export function KBDetail({ kb }: KBDetailProps) {
           </button>
         </div>
       </div>
+
+      {/* Add Knowledge Card */}
+      <AddKnowledgeCard />
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 border-b border-[var(--color-border-default)] overflow-x-auto" role="tablist" aria-label="بخش‌های جزئیات پایگاه دانش">

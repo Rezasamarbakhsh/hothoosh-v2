@@ -220,3 +220,117 @@ Stage Summary:
 - Feature-based organization: features/memory/{components,types}/
 - Files created: 9 (3 feature components, 1 types file, 6 route files — page/loading/error for list + detail)
 - Files modified: 0
+
+---
+Task ID: 2
+Agent: main
+Task: Redesign Chat UI to ChatGPT-like
+
+Work Log:
+- Updated chat.types.ts with 6 PTA agents (auto + 5 PTA agents: Marketing, Branding, Advertising, PR, Holding) and 10 mock sessions spread across agents with both active and archived statuses, dated August 2026
+- Added 6 realistic mock messages for session-1 about خشکبار کوروش business analysis with markdown formatting and real company references
+- Rewrote conversation-list.tsx: ChatGPT-style dark sidebar (w-72, bg-background-subtle), time-grouped sessions (امروز/دیروز/هفته گذشته/ماه گذشته), search, agent pills at bottom, Plus icon for new chat, no 'گفتگوی فعال' phrase
+- Rewrote message-bubble.tsx: ChatGPT-clean style — user messages right-aligned with primary-500 bubble (rounded-2xl rounded-tr-sm), assistant messages no bubble background with Bot icon, agent name label, max-w-2xl, streaming dots preserved
+- Rewrote chat-input.tsx: centered max-w-3xl input with rounded-2xl textarea, agent selector popover (Popover + Command from shadcn/ui) above input, Paperclip attachment button, Send button, keyboard hint
+- Rewrote chat-empty-state.tsx: centered welcome screen with large 'هات‌هوش' logo, 'چگونه می‌توانم کمکتان کنم?' subtitle, 2x2 suggestion cards grid with lucide-react icons (BarChart3, TrendingUp, FileText, Palette)
+- Updated chat-list-client.tsx to simply render ChatEmptyState
+- Rewrote chat-session-client.tsx: no top header bar, desktop sidebar (lg:block), mobile floating PanelLeft toggle button, Sheet for mobile conversation list, messages in max-w-3xl centered, ChatInput at bottom
+- Updated chat layout.tsx to use h-dvh flex container
+- Updated workspace-shell.tsx: added usePathname() to detect /chat routes and remove padding/overflow-y-auto for full-height chat experience
+- Updated chat-ui.store.ts: changed default activeAgentId from 'agent-1' to 'auto'
+- All text in Persian, RTL layout, lucide-react icons throughout, CSS custom properties for colors
+- Lint: 0 errors
+
+Stage Summary:
+Chat UI redesigned to ChatGPT-like experience with PTA agent selector, time-grouped conversations, clean message bubbles, and full-height layout
+
+---
+Task ID: 3
+Agent: main
+Task: Rename عوامل هوشمند → دستیاران هوشمند, update sidebar icons, replace MOCK_AGENTS with PTA agents
+
+Work Log:
+- Sidebar: replaced bullet point (•) icons with lucide-react icons (MessageSquare, Bot, Database, Brain, ShieldCheck)
+- Sidebar: changed NavItem interface to use React.ReactNode for icon field
+- Sidebar: replaced 'عوامل هوشمند' with 'دستیاران هوشمند' label
+- Sidebar: removed Settings nav item, added Admin Panel (پنل مدیریت) with ShieldCheck icon
+- Sidebar: added admin-only visibility check using useSession from next-auth/react (filters nav when role !== 'admin')
+- Sidebar: added 'admin' route detection in getActiveId()
+- Sidebar: icon rendering changed to <span className='shrink-0 h-5 w-5'>{item.icon}</span>
+- Agent types: replaced 6 generic MOCK_AGENTS with 5 PTA agents (Marketing, Branding, Advertising, PR, Holding)
+- Agent types: replaced MOCK_AGENT_DETAILS with matching knowledge/tool/memory bindings per PTA agent
+- PTA Holding bound to all 10 knowledge base IDs (kb-hatro, kb-koush-dryfruits, kb-koush-rice, kb-proushat, kb-golbarg, kb-basti-arin, kb-tala-nab, kb-pakban, kb-koush-protein, kb-koush-fruit)
+- Replaced all occurrences of 'عوامل هوشمند' with 'دستیاران هوشمند' across 10 files
+- Replaced standalone 'عامل' with 'دستیار هوشمند' in all UI-facing text across 10 files
+- Files modified: sidebar.tsx, agent.types.ts, agent-gallery.tsx, agent-detail.tsx, agents/page.tsx, agents/error.tsx, agents/[agentId]/page.tsx, agents/[agentId]/error.tsx, memory/page.tsx, memory.types.ts, kb-card.tsx, kb-detail.tsx, memory-pack-card.tsx, memory-pack-detail.tsx
+- Fixed typo in memory.types.ts: 'обязатель' → 'مختلف'
+- Lint: 0 errors, dev log: no compile errors
+
+Stage Summary:
+Sidebar updated with lucide-react icons and admin-only panel. All Persian UI text renamed from عوامل/عامل to دستیاران هوشمند/دستیار هوشمند. MOCK_AGENTS replaced with 5 PTA agents with domain-specific knowledge bindings.
+
+---
+Task ID: 7
+Agent: main
+Task: Replace knowledge base mock data with 10 Hatro company KBs; add Add Knowledge card to kb-detail
+
+Work Log:
+- Replaced MOCK_KNOWLEDGE_BASES (7 generic KBs) with 10 Hatro company knowledge bases:
+  1. kb-hatro: کسب و کار هاترو (holding, 15 docs, 2340 chunks, 80MB, ready)
+  2. kb-koush-dryfruits: صنعت خشکبار و حبوبات کوروش (12 docs, 1560 chunks, 45MB, ready)
+  3. kb-koush-rice: کشت و صنعت برنج کوروش (8 docs, 890 chunks, 32MB, ready)
+  4. kb-proushat: فرآورده‌های غذایی پروشات کوروش (10 docs, 1200 chunks, 38MB, ready)
+  5. kb-golbarg: گلبرگ غذایی کوروش (9 docs, 1100 chunks, 35MB, ready)
+  6. kb-basti-arin: هستی آرین تامین (14 docs, 1780 chunks, 52MB, ready)
+  7. kb-tala-nab: طلای ناب کوروش (7 docs, 650 chunks, 22MB, ready)
+  8. kb-pakban: صنایع غذایی پاکبان (11 docs, 1450 chunks, 48MB, ready)
+  9. kb-koush-protein: فرآورده‌های پروتئینی کوروش (6 docs, 0 chunks, 18MB, processing)
+  10. kb-koush-fruit: صنعت میوه کوروش (0 docs, 0 chunks, 0MB, empty)
+- All KBs use: kbType: document, chunkingStrategy: heading_based, chunkSize: 512, chunkOverlap: 100, embeddingModel: text-embedding-3-small, persianNlpEnabled: true
+- Created MOCK_KB_DETAILS for all 10 KBs with 2-3 mock documents each (Persian file names, PDF/DOCX/MD types)
+- kb-hatro includes Hatro-Overview.pdf as specified
+- Each KB has 2 recent chunks with company description content (200-400 token counts)
+- kb-koush-protein documents have 'chunking' and 'embedding' processing statuses
+- kb-koush-fruit has empty documents and recentChunks arrays
+- Updated MOCK_SEARCH_RESULTS to reference new KB IDs and Persian content
+- Added AddKnowledgeCard component to kb-detail.tsx with:
+  - shadcn/ui Tabs (افزودن متن / آپلود فایل)
+  - Textarea with character count and Submit button (disabled when empty)
+  - File upload dropzone with drag-and-drop styling and lucide-react icons (FileText, Upload, Plus)
+  - Added imports for lucide-react icons, shadcn Tabs, Textarea, Button
+- Updated search placeholder text to Hatro-relevant query
+- Lint: 0 errors, dev log: all routes compile successfully
+
+Stage Summary:
+Knowledge base mock data fully replaced with 10 Hatro (هاترو) company KBs covering the entire food industry group. Each KB has realistic documents, chunks with Persian company descriptions, and proper processing states. KB detail page now includes an Add Knowledge card with text input and file upload dropzone using shadcn/ui components.
+
+---
+Task ID: 8
+Agent: main
+Task: Admin Panel — API Key Management at /admin
+
+Work Log:
+- Created admin types file (features/admin/types/admin.types.ts):
+  - ApiKey interface with id, name, provider, key, status, monthlySpend, monthlyBudget, totalRequests, tokensUsed, lastUsedAt, createdAt
+  - Provider type: openai | anthropic | google | local
+  - ApiKeyStatus type: active | revoked | expired
+  - PROVIDER_LABELS, PROVIDER_COLORS maps (CSS variable-based colors)
+  - 6 MOCK_API_KEYS: 2 OpenAI, 2 Anthropic, 1 Google AI, 1 local Llama — with realistic spend, request counts, token usage, and August 2026 timestamps
+- Created ApiKeysManager component (features/admin/components/api-keys-manager.tsx):
+  - 4 summary cards (active keys, monthly spend, total requests, tokens used) with Key/DollarSign/Activity/Cpu icons
+  - Card list of API keys with provider badge, name, masked key, status badge, monthly usage Progress bar, last used relativeTime, token count
+  - DropdownMenu per key with copy/revoke/delete actions
+  - 'Add New Key' button → Dialog with form (name, provider Select, key Input with LTR dir, budget number Input)
+  - formatNumber with fa-IR locale, formatCurrency with Intl.NumberFormat('fa-IR'), relativeTime helper
+  - Uses shadcn: Card, Button, Badge, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Input, Separator, Progress
+- Created AdminPanelClient component (features/admin/components/admin-panel-client.tsx):
+  - ShieldCheck icon + 'پنل مدیریت' title
+  - shadcn Tabs with 2 tabs: 'مدیریت API' (renders ApiKeysManager) and 'تنظیمات سیستم' (coming soon placeholder)
+- Created /admin/page.tsx: Server Component with metadata 'پنل مدیریت — هات‌هوش', renders AdminPanelClient
+- Created /admin/loading.tsx: Skeleton loading matching page layout (header, tabs, stats row, key list cards)
+- Created /admin/error.tsx: Next.js error boundary with Persian text, reset + back to /chat buttons
+- All components use glass-panel-elevated class and CSS custom properties (var(--color-*))
+- Lint: 0 errors, /admin route returns 200
+
+Stage Summary:
+Admin panel created at /admin with API key management. 6 mock API keys across 4 providers (OpenAI, Anthropic, Google AI, local). Summary stats, card list with usage bars, add dialog, and dropdown actions. Uses shadcn/ui components throughout with Persian RTL layout, CSS variables, and fa-IR number formatting.

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { PanelLeft } from 'lucide-react';
 import { MessageBubble } from '@/features/chat/components/message-bubble';
 import { ChatInput } from '@/features/chat/components/chat-input';
 import { ConversationList } from '@/features/chat/components/conversation-list';
@@ -11,6 +12,7 @@ import {
   MOCK_AGENTS,
   type ChatMessage,
 } from '@/features/chat/types/chat.types';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface Props {
   chatId: string;
@@ -20,10 +22,12 @@ export default function ChatSessionClient({ chatId }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
   const isStreaming = useChatUIStore((s) => s.isStreaming);
   const setStreaming = useChatUIStore((s) => s.actions.setStreaming);
+  const isListOpen = useChatUIStore((s) => s.isListOpen);
+  const setListOpen = useChatUIStore((s) => s.actions.setListOpen);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const session = MOCK_SESSIONS[0];
-  const agent = MOCK_AGENTS[0];
+  const session = MOCK_SESSIONS.find((s) => s.id === chatId) ?? MOCK_SESSIONS[0];
+  const agent = MOCK_AGENTS.find((a) => a.id === session.agentId) ?? MOCK_AGENTS[0];
 
   /* Auto-scroll to bottom on new messages */
   useEffect(() => {
@@ -73,79 +77,21 @@ export default function ChatSessionClient({ chatId }: Props) {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className='flex h-full overflow-hidden'>
       {/* Conversation list — desktop only */}
-      <div className="hidden w-72 shrink-0 lg:block">
+      <div className='hidden lg:block'>
         <ConversationList activeId={chatId} />
       </div>
 
       {/* Main chat area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Chat header */}
-        <header className="flex items-center gap-3 border-b border-[var(--color-border-default)] px-4 py-3">
-          {/* Mobile back button */}
-          <button
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors duration-100 hover:bg-[var(--color-surface-raised)] lg:hidden"
-            aria-label="بازگشت به لیست"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
-              />
-            </svg>
-          </button>
-
-          {/* Agent info */}
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-raised)]"
-          >
-            <svg
-              className="h-4 w-4 text-[var(--color-text-muted)]"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
-              />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <p
-              className="truncate font-[var(--font-weight-medium)] text-[var(--color-text-primary)]"
-              style={{ fontSize: 'var(--text-body-sm)' }}
-            >
-              {agent.name}
-            </p>
-            <p
-              className="truncate text-[var(--color-text-muted)]"
-              style={{ fontSize: 'var(--text-caption-xs)' }}
-            >
-              {session.title ?? 'گفتگوی جدید'}
-            </p>
-          </div>
-        </header>
-
+      <div className='flex flex-1 flex-col overflow-hidden'>
         {/* Messages area */}
         <div
-          className="flex-1 overflow-y-auto px-4 py-4"
-          aria-live="polite"
-          aria-label="پیام‌های گفتگو"
+          className='flex-1 overflow-y-auto px-4 pt-4'
+          aria-live='polite'
+          aria-label='پیام‌های گفتگو'
         >
-          <div className="mx-auto max-w-3xl space-y-4">
+          <div className='mx-auto max-w-3xl space-y-6'>
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
@@ -167,9 +113,28 @@ export default function ChatSessionClient({ chatId }: Props) {
           onSend={handleSend}
           disabled={false}
           isStreaming={isStreaming}
-          placeholder={"پیام خود را بنویسید..."}
+          placeholder={'پیام خود را بنویسید...'}
         />
       </div>
+
+      {/* Mobile sidebar toggle — floating button */}
+      <button
+        onClick={() => setListOpen(true)}
+        className='fixed bottom-24 start-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] text-[var(--color-text-secondary)] shadow-[var(--shadow-md)] transition-colors duration-100 hover:bg-[var(--color-surface-data)] lg:hidden'
+        aria-label='نمایش لیست گفتگوها'
+      >
+        <PanelLeft className='h-5 w-5' />
+      </button>
+
+      {/* Mobile sheet for conversation list */}
+      <Sheet open={isListOpen} onOpenChange={setListOpen}>
+        <SheetContent side='right' className='w-72 p-0 bg-[var(--color-background-subtle)]'>
+          <SheetHeader className='sr-only'>
+            <SheetTitle>لیست گفتگوها</SheetTitle>
+          </SheetHeader>
+          <ConversationList activeId={chatId} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

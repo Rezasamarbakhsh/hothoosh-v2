@@ -1,0 +1,51 @@
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function AdminLoading() {
+  return (
+    <div className='flex flex-col gap-6'>
+      {/* Header skeleton */}
+      <div className='flex items-center gap-3'>
+        <Skeleton className='h-10 w-10 rounded-lg' />
+        <Skeleton className='h-7 w-32' />
+      </div>
+
+      {/* Tabs skeleton */}
+      <Skeleton className='h-9 w-64 rounded-lg' />
+
+      {/* Stats row skeleton */}
+      <div className='grid grid-cols-2 gap-3 lg:grid-cols-4'>
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className='glass-panel-elevated rounded-xl p-4'>
+            <div className='flex items-center gap-3'>
+              <Skeleton className='h-10 w-10 rounded-lg' />
+              <div className='flex flex-col gap-2'>
+                <Skeleton className='h-3 w-20' />
+                <Skeleton className='h-5 w-16' />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* List skeleton */}
+      <div className='flex flex-col gap-3'>
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className='glass-panel-elevated rounded-xl p-4'>
+            <div className='flex items-center justify-between gap-4'>
+              <div className='flex flex-1 flex-col gap-3'>
+                <div className='flex items-center gap-2'>
+                  <Skeleton className='h-5 w-16 rounded-full' />
+                  <Skeleton className='h-5 w-14 rounded-full' />
+                  <Skeleton className='h-4 w-24' />
+                </div>
+                <Skeleton className='h-3 w-48' />
+                <Skeleton className='h-2 w-56 rounded-full' />
+              </div>
+              <Skeleton className='h-8 w-8 rounded-md' />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

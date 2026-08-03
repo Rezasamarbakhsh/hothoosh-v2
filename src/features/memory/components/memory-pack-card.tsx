@@ -126,7 +126,7 @@ export function MemoryPackCard({ pack }: MemoryPackCardProps) {
                 <path d='M8 1a7 7 0 110 14A7 7 0 018 1zm-1 4.5h2v4H7v-4zm0 5.5h2v1.5H7V11z' />
               </svg>
               <span className='text-[var(--color-accent)]' style={{ fontSize: 'var(--text-caption-sm)' }}>
-                متصل به {formatNumber(pack.boundAgentCount)} عامل
+                متصل به {formatNumber(pack.boundAgentCount)} دستیار هوشمند
               </span>
             </div>
           ) : (

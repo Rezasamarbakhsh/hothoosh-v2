@@ -115,11 +115,11 @@ export const MOCK_MEMORY_PACKS: MemoryPack[] = [
   {
     id: 'mem-1',
     name: 'پیشرفت کاربر',
-    description: 'ذخیره‌سازی پیشرفت و وضعیت فعلی کاربر شامل وظایف در دست انجام، اولویت‌ها و اهداف کوتاه‌مدت و بلندمدت. این بسته حافظه به عوامل کمک می‌کند تا در جلسات مختلف گفتگو، ادامه کار کاربر را به خاطر بسپارند.',
+    description: 'ذخیره‌سازی پیشرفت و وضعیت فعلی کاربر شامل وظایف در دست انجام، اولویت‌ها و اهداف کوتاه‌مدت و بلندمدت. این بسته حافظه به دستیاران هوشمند کمک می‌کند تا در جلسات مختلف گفتگو، ادامه کار کاربر را به خاطر بسپارند.',
     memoryType: 'context',
     status: 'active',
     scope: 'workspace',
-    content: 'کاربر در حال توسعه یک پلتفرم هوش مصنوعی سازمانی است. فاز فعلی: ساخت رابط کاربری وب. تکنولوژی‌ها: Next.js 15, TypeScript, Tailwind CSS. تیم شامل ۵ نفر توسعه‌دهنده. اولویت فعلی: تکمیل ماژول عوامل هوشمند.',
+    content: 'کاربر در حال توسعه یک پلتفرم هوش مصنوعی سازمانی است. فاز فعلی: ساخت رابط کاربری وب. تکنولوژی‌ها: Next.js 15, TypeScript, Tailwind CSS. تیم شامل ۵ نفر توسعه‌دهنده. اولویت فعلی: تکمیل ماژول دستیاران هوشمند.',
     tokenCount: 87,
     currentVersion: 3,
     versionCount: 3,
@@ -134,11 +134,11 @@ export const MOCK_MEMORY_PACKS: MemoryPack[] = [
   {
     id: 'mem-2',
     name: 'سبک نگارش برند',
-    description: 'ترجیحات نگارشی و لحن برند شامل سطح رسمیت، واژگان ترجیحی، الگوهای جمله‌بندی و قوانین نگارش محتوا. تمام عوامل تولید محتوا از این بسته استفاده می‌کنند.',
+    description: 'ترجیحات نگارشی و لحن برند شامل سطح رسمیت، واژگان ترجیحی، الگوهای جمله‌بندی و قوانین نگارش محتوا. تمام دستیاران هوشمند تولید محتوا از این بسته استفاده می‌کنند.',
     memoryType: 'preference',
     status: 'active',
     scope: 'brand',
-    content: 'لحن: رسمی ولی دوستانه. سطح زبان: حرفه‌ای. واژگان ترجیحی: «پلتفرم» به جای «سیستم»، «عامل هوشمند» به جای «ربات». جمله‌بندی: کوتاه و شفاف. پرهیز از اصطلاحات خارجی بدون معادل فارسی. استفاده از نیم‌فاصله استاندارد.',
+    content: 'توصیف: رسمی ولی دوستانه. سطح زبان: حرفه‌ای. واژگان ترجیحی: «پلتفرم» به جای «سیستم»، «دستیار هوشمند» به جای «ربات». جمله‌بندی: کوتاه و شفاف. پرهیز از اصطلاحات خارجی بدون معادل فارسی. استفاده از نیم‌فاصله استاندارد.',
     tokenCount: 72,
     currentVersion: 5,
     versionCount: 5,
@@ -172,7 +172,7 @@ export const MOCK_MEMORY_PACKS: MemoryPack[] = [
   {
     id: 'mem-4',
     name: 'دستورالعمل‌های امنیتی',
-    description: 'مجموعه قوانین و محدودیت‌های امنیتی که تمام عوامل هوشمند باید رعایت کنند. شامل قوانین دسترسی داده، محرمانگی و compliance.',
+    description: 'مجموعه قوانین و محدودیت‌های امنیتی که تمام دستیاران هوشمند باید رعایت کنند. شامل قوانین دسترسی داده، محرمانگی و compliance.',
     memoryType: 'system',
     status: 'active',
     scope: 'organization',
@@ -195,7 +195,7 @@ export const MOCK_MEMORY_PACKS: MemoryPack[] = [
     memoryType: 'knowledge',
     status: 'active',
     scope: 'company',
-    content: 'محصول اصلی: هات‌هوش — پلتفرم هوش مصنوعی سازمانی. ویژگی‌های کلیدی: عوامل هوشمند چندمنظوره، پایگاه دانش RAG با پشتیبانی فارسی، حافظه پایدار جلسات، تحلیل داده. مزیت رقابتی: پشتیبانی بومی RTL/Farsi، معماری multi-tenant، کامپلایانس با مقررات داخلی.',
+    content: 'محصول اصلی: هات‌هوش — پلتفرم هوش مصنوعی سازمانی. ویژگی‌های کلیدی: دستیاران هوشمند چندمنظوره، پایگاه دانش RAG با پشتیبانی فارسی، حافظه پایدار جلسات، تحلیل داده. مزیت رقابتی: پشتیبانی بومی RTL/Farsi، معماری multi-tenant، کامپلایانس با مقررات داخلی.',
     tokenCount: 68,
     currentVersion: 4,
     versionCount: 4,
@@ -210,7 +210,7 @@ export const MOCK_MEMORY_PACKS: MemoryPack[] = [
   {
     id: 'mem-6',
     name: 'قالب گزارش‌دهی',
-    description: 'الگوی استاندارد گزارش‌دهی سازمانی شامل ساختار، بخش‌های обязатель и فرمت خروجی. برای تولید گزارش‌های یکپارچه توسط عوامل مختلف.',
+    description: 'الگوی استاندارد گزارش‌دهی سازمانی شامل ساختار، بخش‌های مختلف و فرمت خروجی. برای تولید گزارش‌های یکپارچه توسط دستیاران هوشمند مختلف.',
     memoryType: 'system',
     status: 'draft',
     scope: 'company',
@@ -282,9 +282,9 @@ export const MOCK_MEMORY_DETAILS: Record<string, MemoryPackDetail> = {
     ...MOCK_MEMORY_PACKS[1],
     versions: [
       { id: 'v-2-1', memoryPackId: 'mem-2', versionNumber: 1, content: 'لحن: رسمی. واژگان ترجیحی: پلتفرم. جمله‌بندی: کوتاه.', summary: 'نسخه اولیه', tokenCount: 15, createdBy: 'سارا احمدی', createdAt: '2025-10-15T08:00:00Z' },
-      { id: 'v-2-2', memoryPackId: 'mem-2', versionNumber: 2, content: 'لحن: رسمی ولی دوستانه. واژگان ترجیحی: پلتفرم، عامل هوشمند. جمله‌بندی: کوتاه و شفاف.', summary: 'بهبود لحن و افزودن واژگان', tokenCount: 28, createdBy: 'سارا احمدی', createdAt: '2025-12-20T10:00:00Z' },
-      { id: 'v-2-3', memoryPackId: 'mem-2', versionNumber: 3, content: 'لحن: رسمی ولی دوستانه. سطح زبان: حرفه‌ای. واژگان: پلتفرم، عامل هوشمند. پرهیز از اصطلاحات خارجی.', summary: 'افزودن سطح زبان و قوانین خارجی', tokenCount: 38, createdBy: 'سارا احمدی', createdAt: '2026-02-10T11:00:00Z' },
-      { id: 'v-2-4', memoryPackId: 'mem-2', versionNumber: 4, content: 'لحن: رسمی ولی دوستانه. سطح زبان: حرفه‌ای. واژگان ترجیحی: پلتفرم، عامل هوشمند. جمله‌بندی: کوتاه. پرهیز از اصطلاحات خارجی. استفاده از نیم‌فاصله.', summary: 'افزودن نیم‌فاصله و بهبود جمله‌بندی', tokenCount: 55, createdBy: 'سارا احمدی', createdAt: '2026-05-01T09:00:00Z' },
+      { id: 'v-2-2', memoryPackId: 'mem-2', versionNumber: 2, content: 'لحن: رسمی ولی دوستانه. واژگان ترجیحی: پلتفرم، دستیار هوشمند. جمله‌بندی: کوتاه و شفاف.', summary: 'بهبود لحن و افزودن واژگان', tokenCount: 28, createdBy: 'سارا احمدی', createdAt: '2025-12-20T10:00:00Z' },
+      { id: 'v-2-3', memoryPackId: 'mem-2', versionNumber: 3, content: 'لحن: رسمی ولی دوستانه. سطح زبان: حرفه‌ای. واژگان: پلتفرم، دستیار هوشمند. پرهیز از اصطلاحات خارجی.', summary: 'افزودن سطح زبان و قوانین خارجی', tokenCount: 38, createdBy: 'سارا احمدی', createdAt: '2026-02-10T11:00:00Z' },
+      { id: 'v-2-4', memoryPackId: 'mem-2', versionNumber: 4, content: 'لحن: رسمی ولی دوستانه. سطح زبان: حرفه‌ای. واژگان ترجیحی: پلتفرم، دستیار هوشمند. جمله‌بندی: کوتاه. پرهیز از اصطلاحات خارجی. استفاده از نیم‌فاصله.', summary: 'افزودن نیم‌فاصله و بهبود جمله‌بندی', tokenCount: 55, createdBy: 'سارا احمدی', createdAt: '2026-05-01T09:00:00Z' },
       { id: 'v-2-5', memoryPackId: 'mem-2', versionNumber: 5, content: MOCK_MEMORY_PACKS[1].content, summary: 'تکمیل نهایی با معادل‌سازی کامل', tokenCount: 72, createdBy: 'سارا احمدی', createdAt: '2026-07-28T14:00:00Z' },
     ],
     boundAgents: [
@@ -320,8 +320,8 @@ export const MOCK_MEMORY_DETAILS: Record<string, MemoryPackDetail> = {
   'mem-5': {
     ...MOCK_MEMORY_PACKS[4],
     versions: [
-      { id: 'v-5-1', memoryPackId: 'mem-5', versionNumber: 1, content: 'محصول: هات‌هوش. ویژگی: عوامل هوشمند و پایگاه دانش.', summary: 'نسخه اولیه', tokenCount: 16, createdBy: 'سارا احمدی', createdAt: '2025-12-01T08:00:00Z' },
-      { id: 'v-5-2', memoryPackId: 'mem-5', versionNumber: 2, content: 'محصول: هات‌هوش. ویژگی: عوامل هوشمند، پایگاه دانش RAG، حافظه جلسات. مزیت: پشتیبانی فارسی.', summary: 'افزودن ویژگی‌ها و مزیت', tokenCount: 30, createdBy: 'سارا احمدی', createdAt: '2026-03-01T10:00:00Z' },
+      { id: 'v-5-1', memoryPackId: 'mem-5', versionNumber: 1, content: 'محصول: هات‌هوش. ویژگی: دستیاران هوشمند و پایگاه دانش.', summary: 'نسخه اولیه', tokenCount: 16, createdBy: 'سارا احمدی', createdAt: '2025-12-01T08:00:00Z' },
+      { id: 'v-5-2', memoryPackId: 'mem-5', versionNumber: 2, content: 'محصول: هات‌هوش. ویژگی: دستیاران هوشمند، پایگاه دانش RAG، حافظه جلسات. مزیت: پشتیبانی فارسی.', summary: 'افزودن ویژگی‌ها و مزیت', tokenCount: 30, createdBy: 'سارا احمدی', createdAt: '2026-03-01T10:00:00Z' },
       { id: 'v-5-3', memoryPackId: 'mem-5', versionNumber: 3, content: MOCK_MEMORY_PACKS[4].content, summary: 'تکمیل با جزئیات معماری', tokenCount: 68, createdBy: 'سارا احمدی', createdAt: '2026-08-01T20:00:00Z' },
     ],
     boundAgents: [

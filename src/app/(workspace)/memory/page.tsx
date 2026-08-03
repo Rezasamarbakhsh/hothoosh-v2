@@ -4,7 +4,7 @@ import { MemoryPackGallery } from '@/features/memory/components/memory-pack-gall
 
 export const metadata: Metadata = {
   title: 'حافظه — هات‌هوش',
-  description: 'مدیریت بسته‌های حافظه و بافت زمینه‌ای عوامل هوشمند',
+  description: 'مدیریت بسته‌های حافظه و بافت زمینه‌ای دستیاران هوشمند',
 };
 
 export default function MemoryPage() {
@@ -20,7 +20,7 @@ export default function MemoryPage() {
             حافظه
           </h1>
           <p className='mt-1 text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>
-            بسته‌های حافظه پایدار که در جلسات گفتگو به عوامل تزریق می‌شوند
+            بسته‌های حافظه پایدار که در جلسات گفتگو به دستیاران هوشمند تزریق می‌شوند
           </p>
         </div>
       </div>

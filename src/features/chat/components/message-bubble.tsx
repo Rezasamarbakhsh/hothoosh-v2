@@ -1,4 +1,5 @@
 import React from 'react';
+import { Bot, User } from 'lucide-react';
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -23,7 +24,7 @@ function renderContent(text: string): React.ReactNode[] {
     const rendered = inlineParts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
-          <strong key={i} className="font-[var(--font-weight-semibold)]">
+          <strong key={i} className='font-[var(--font-weight-semibold)]'>
             {part.slice(2, -2)}
           </strong>
         );
@@ -51,9 +52,9 @@ export function MessageBubble({
 
   if (isSystem) {
     return (
-      <div className="my-3 flex justify-center">
+      <div className='my-3 flex justify-center'>
         <p
-          className="rounded-full bg-[var(--color-surface-raised)] px-4 py-1.5 text-[var(--color-text-muted)]"
+          className='rounded-full bg-[var(--color-surface-raised)] px-4 py-1.5 text-[var(--color-text-muted)]'
           style={{ fontSize: 'var(--text-caption-sm)' }}
         >
           {content}
@@ -62,44 +63,55 @@ export function MessageBubble({
     );
   }
 
-  return (
-    <div className={"flex gap-3 " + (isUser ? "flex-row-reverse" : "")}>
-      <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-        style={{
-          backgroundColor: isUser
-            ? 'var(--color-primary-100)'
-            : 'var(--color-surface-raised)',
-        }}
-      >
-        {isUser ? (
-          <svg className="h-4 w-4 text-[var(--color-primary-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-          </svg>
-        ) : (
-          <svg className="h-4 w-4 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-          </svg>
-        )}
+  /* User message: right-aligned bubble */
+  if (isUser) {
+    return (
+      <div className='flex justify-end'>
+        <div className='max-w-2xl'>
+          <div className='flex items-end gap-2'>
+            <div
+              className='rounded-2xl rounded-tr-sm bg-[var(--color-primary-500)] px-4 py-3 text-[var(--color-text-inverse)]'
+              style={{
+                fontSize: 'var(--text-body-md)',
+                lineHeight: 'var(--leading-body-lg)',
+              }}
+            >
+              {renderContent(content)}
+            </div>
+            <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]'>
+              <User className='h-3.5 w-3.5' />
+            </div>
+          </div>
+          {createdAt && (
+            <p
+              className='mt-1 text-end text-[var(--color-text-muted)]'
+              style={{ fontSize: 'var(--text-caption-xs)' }}
+            >
+              {formatTime(createdAt)}
+            </p>
+          )}
+        </div>
       </div>
+    );
+  }
 
-      <div className={"max-w-[75%] " + (isUser ? "items-end" : "items-start")}>
-        {!isUser && agentName && (
+  /* Assistant message: clean text, no bubble, icon on the start side */
+  return (
+    <div className='flex items-start gap-3'>
+      <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)]'>
+        <Bot className='h-4 w-4 text-[var(--color-text-muted)]' />
+      </div>
+      <div className='min-w-0 flex-1 max-w-2xl'>
+        {agentName && (
           <p
-            className="mb-1 font-[var(--font-weight-medium)] text-[var(--color-text-secondary)]"
+            className='mb-1 font-[var(--font-weight-medium)] text-[var(--color-text-secondary)]'
             style={{ fontSize: 'var(--text-caption-sm)' }}
           >
             {agentName}
           </p>
         )}
-
         <div
-          className={
-            "rounded-2xl px-4 py-3 " +
-            (isUser
-              ? "rounded-tr-sm bg-[var(--color-primary-500)] text-[var(--color-text-inverse)]"
-              : "rounded-tl-sm bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)]")
-          }
+          className='text-[var(--color-text-primary)]'
           style={{
             fontSize: 'var(--text-body-md)',
             lineHeight: 'var(--leading-body-lg)',
@@ -107,10 +119,9 @@ export function MessageBubble({
         >
           {isStreaming && !content ? <StreamingDots /> : renderContent(content)}
         </div>
-
         {createdAt && (
           <p
-            className={"mt-1 text-[var(--color-text-muted)] " + (isUser ? "text-end" : "")}
+            className='mt-1 text-[var(--color-text-muted)]'
             style={{ fontSize: 'var(--text-caption-xs)' }}
           >
             {formatTime(createdAt)}
@@ -123,10 +134,10 @@ export function MessageBubble({
 
 function StreamingDots() {
   return (
-    <span className="inline-flex items-center gap-1" aria-label="در حال تولید پاسخ">
-      <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:0ms]" />
-      <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:150ms]" />
-      <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:300ms]" />
+    <span className='inline-flex items-center gap-1' aria-label='در حال تولید پاسخ'>
+      <span className='h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:0ms]' />
+      <span className='h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:150ms]' />
+      <span className='h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:300ms]' />
     </span>
   );
 }

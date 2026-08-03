@@ -10,7 +10,7 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { agentId } = await params;
   const agent = MOCK_AGENT_DETAILS[agentId];
-  if (!agent) return { title: 'عامل یافت نشد — هات‌هوش' };
+  if (!agent) return { title: 'دستیار هوشمند یافت نشد — هات‌هوش' };
   return {
     title: `${agent.name} (${AGENT_STATUS_LABELS[agent.status]}) — هات‌هوش`,
   };

@@ -1,21 +1,25 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { MessageSquare, Bot, Database, Brain, ShieldCheck } from 'lucide-react';
 
 interface NavItem {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   href: string;
+  adminOnly?: boolean;
 }
 
 const WORKSPACE_NAV: NavItem[] = [
-  { id: 'chat', label: 'گفتگو', icon: '•', href: '/chat' },
-  { id: 'agents', label: 'عوامل هوشمند', icon: '•', href: '/agents' },
-  { id: 'knowledge', label: 'پایگاه دانش', icon: '•', href: '/knowledge' },
-  { id: 'memory', label: 'حافظه', icon: '•', href: '/memory' },
-  { id: 'settings', label: 'تنظیمات', icon: '•', href: '/settings' },
+  { id: 'chat', label: 'گفتگو', icon: <MessageSquare size={20} />, href: '/chat' },
+  { id: 'agents', label: 'دستیاران هوشمند', icon: <Bot size={20} />, href: '/agents' },
+  { id: 'knowledge', label: 'پایگاه دانش', icon: <Database size={20} />, href: '/knowledge' },
+  { id: 'memory', label: 'حافظه', icon: <Brain size={20} />, href: '/memory' },
+  { id: 'admin', label: 'پنل مدیریت', icon: <ShieldCheck size={20} />, href: '/admin', adminOnly: true },
 ];
 
 interface SidebarProps {
@@ -25,12 +29,19 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const isAdmin = (session?.user as any)?.role === 'admin';
+
+  const visibleNav = WORKSPACE_NAV.filter(
+    (item) => !item.adminOnly || isAdmin,
+  );
 
   function getActiveId(): string {
+    if (pathname.startsWith('/admin')) return 'admin';
     if (pathname.startsWith('/agents')) return 'agents';
     if (pathname.startsWith('/knowledge')) return 'knowledge';
     if (pathname.startsWith('/memory')) return 'memory';
-    if (pathname.startsWith('/settings')) return 'settings';
     return 'chat';
   }
 
@@ -82,7 +93,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         <ul className="flex flex-col gap-1" role="list">
-          {WORKSPACE_NAV.map((item) => {
+          {visibleNav.map((item) => {
             const isActive = item.id === activeId;
             return (
               <li key={item.id}>
@@ -103,9 +114,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       aria-hidden="true"
                     />
                   )}
-                  <span className="shrink-0 text-base" aria-hidden="true">
-                    {item.icon}
-                  </span>
+                  <span className='shrink-0 h-5 w-5' aria-hidden='true'>{item.icon}</span>
                   {!collapsed && (
                     <span
                       className="truncate font-[var(--font-weight-medium)]"
