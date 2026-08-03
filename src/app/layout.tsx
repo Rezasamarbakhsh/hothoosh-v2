@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme/theme-provider';
-import { WorkspaceShell } from '@/components/layout/workspace-shell';
 
 const vazirmatn = localFont({
   src: '../../public/fonts/Vazirmatn-Variable.woff2',
@@ -13,9 +12,9 @@ const vazirmatn = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'هت‌هوش — فضای کاری هوش مصنوعی سازمانی',
+  title: 'هات‌هوش — فضای کاری هوش مصنوعی سازمانی',
   description:
-    'هت‌هوش یک فضای کاری هوش مصنوعی سازمانی فارسی‌اول با قابلیت‌های گفتگو، پایگاه دانش و حافظه هوشمند.',
+    'هات‌هوش یک فضای کاری هوش مصنوعی سازمانی فارسی‌اول با قابلیت‌های گفتگو، پایگاه دانش و حافظه هوشمند.',
 };
 
 export default function RootLayout({
@@ -30,9 +29,7 @@ export default function RootLayout({
         <link rel="stylesheet" href="/glass.css" />
       </head>
       <body className={`${vazirmatn.variable} antialiased`}>
-        <ThemeProvider>
-          <WorkspaceShell>{children}</WorkspaceShell>
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
