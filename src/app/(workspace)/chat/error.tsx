@@ -1,3 +1,5 @@
+'use client';
+
 export default function ChatError({ reset }: { reset: () => void }) {
   return (
     <div className="flex h-full items-center justify-center">

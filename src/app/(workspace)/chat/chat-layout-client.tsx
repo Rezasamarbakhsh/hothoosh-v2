@@ -36,19 +36,6 @@ function getTimeGroup(dateStr: string): string {
 }
 const GROUP_ORDER = ['امروز', 'دیروز', 'هفته گذشته', 'بالاتر'];
 
-/* ── Animated AI border keyframes ── */
-const AI_BORDER_STYLE = `
-@keyframes ai-border-spin {
-  0%   { --angle: 0deg; }
-  100% { --angle: 360deg; }
-}
-.ai-border {
-  --angle: 0deg;
-  background: conic-gradient(from var(--angle), var(--color-primary-500), transparent 40%, var(--color-primary-400) 60%, transparent);
-  animation: ai-border-spin 3s linear infinite;
-}
-`;
-
 export default function ChatLayoutClient() {
   const [inputValue, setInputValue] = useState('');
   const [search, setSearch] = useState('');
@@ -146,8 +133,6 @@ export default function ChatLayoutClient() {
 
   return (
     <div className="flex h-full">
-      {/* ── Animated AI border style ── */}
-      <style dangerouslySetInnerHTML={{ __html: AI_BORDER_STYLE }} />
 
       {/* ── Conversation sidebar ── */
       <aside

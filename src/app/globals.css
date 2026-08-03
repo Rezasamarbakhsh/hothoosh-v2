@@ -379,3 +379,20 @@
     inset-inline-start: 0;
   }
 }
+
+/* AI Chat animated border */
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes ai-border-spin {
+  0%   { --angle: 0deg; }
+  100% { --angle: 360deg; }
+}
+.ai-border {
+  --angle: 0deg;
+  background: conic-gradient(from var(--angle), var(--color-primary-500), transparent 40%, var(--color-primary-400) 60%, transparent);
+  animation: ai-border-spin 3s linear infinite;
+  border-radius: 1rem;
+}
