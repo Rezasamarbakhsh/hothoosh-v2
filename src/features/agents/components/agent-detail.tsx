@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   type AgentDetail as AgentDetailType,
   type AgentKnowledgeBinding,
@@ -12,6 +13,10 @@ import {
   AGENT_TYPE_COLORS,
   AGENT_STATUS_COLORS,
 } from '../types/agent.types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AgentDetailProps {
   agent: AgentDetailType;
@@ -412,6 +417,21 @@ function EmptyTab({ icon, title, description }: { icon: string; title: string; d
 
 export function AgentDetail({ agent }: AgentDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('config');
+  const [editOpen, setEditOpen] = useState(false);
+  const [activateOpen, setActivateOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [agentStatus, setAgentStatus] = useState(agent.status);
+  const router = useRouter();
+
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  function handleActivate() {
+    setAgentStatus('active');
+    showToast('دستیار هوشمند با موفقیت فعال شد');
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -489,6 +509,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => { setEditOpen(true); showToast('حالت ویرایش فعال شد', 'info'); }}
               className={
                 'inline-flex items-center gap-2 rounded-lg px-4 py-2 font-[var(--font-weight-medium)] transition-colors duration-[var(--duration-150)] ' +
                 'bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-solid)]'
@@ -497,9 +518,10 @@ export function AgentDetail({ agent }: AgentDetailProps) {
             >
               ویرایش
             </button>
-            {agent.status === 'draft' && (
+            {agentStatus === 'draft' && (
               <button
                 type="button"
+                onClick={() => setActivateOpen(true)}
                 className={
                   'inline-flex items-center gap-2 rounded-lg px-4 py-2 font-[var(--font-weight-medium)] transition-opacity duration-[var(--duration-150)] ' +
                   'bg-[var(--color-success-600)] text-white hover:opacity-90'
@@ -511,6 +533,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
             )}
             <button
               type="button"
+              onClick={() => router.push('/chat')}
               className={
                 'inline-flex items-center gap-2 rounded-lg px-4 py-2 font-[var(--font-weight-medium)] transition-colors duration-[var(--duration-150)] ' +
                 'bg-[var(--color-accent)] text-[var(--color-text-inverse)] hover:opacity-90'
@@ -556,7 +579,52 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
       {/* Tab content */}
       <div role="tabpanel" id={`panel-${activeTab}`}>
-        {activeTab === 'config' && <ConfigTab agent={agent} />}
+        {toast && (
+          <div className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg px-4 py-3 text-[var(--color-text-inverse)] shadow-lg transition-opacity duration-300 ${toast.type === 'success' ? 'bg-[var(--color-success-600)]' : 'bg-[var(--color-primary-500)]'}`}>
+            {toast.message}
+          </div>
+        )}
+        {/* Edit Dialog */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className='glass-panel-elevated border-0 sm:max-w-md' dir='rtl'>
+            <DialogHeader>
+              <DialogTitle className='text-[var(--color-text-primary)]'>ویرایش دستیار هوشمند</DialogTitle>
+              <DialogDescription className='text-[var(--color-text-muted)]'>اطلالات دستیار هوشمند را ویرایش کنید.</DialogDescription>
+            </DialogHeader>
+            <div className='flex flex-col gap-4 pt-2'>
+              <div className='flex flex-col gap-1.5'>
+                <label className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>نام</label>
+                <Input defaultValue={agent.name} className='border-[var(--color-border-default)] bg-[var(--color-background)]' />
+              </div>
+              <div className='flex flex-col gap-1.5'>
+                <label className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>توضیحات</label>
+                <Textarea defaultValue={agent.description || ''} rows={3} className='border-[var(--color-border-default)] bg-[var(--color-background)]' />
+              </div>
+              <div className='flex flex-col gap-1.5'>
+                <label className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>پرامپت سیستم</label>
+                <Textarea defaultValue={agent.systemPrompt} rows={5} dir='auto' className='border-[var(--color-border-default)] bg-[var(--color-background)]' />
+              </div>
+              <div className='flex items-center justify-end gap-2'>
+                <Button variant='outline' onClick={() => setEditOpen(false)}>انصراف</Button>
+                <Button onClick={() => { setEditOpen(false); showToast('تغییرات ذخیره شد'); }}>ذخیره تغییرات</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {/* Activate Confirm */}
+        <Dialog open={activateOpen} onOpenChange={setActivateOpen}>
+          <DialogContent className='glass-panel-elevated border-0 sm:max-w-md' dir='rtl'>
+            <DialogHeader>
+              <DialogTitle className='text-[var(--color-text-primary)]'>فعال‌سازی دستیار هوشمند</DialogTitle>
+              <DialogDescription className='text-[var(--color-text-secondary)]'>آیا از فعال‌سازی «{agent.name}» اطمینان دارید؟</DialogDescription>
+            </DialogHeader>
+            <div className='flex items-center justify-end gap-2 pt-2'>
+              <Button variant='outline' onClick={() => setActivateOpen(false)}>انصراف</Button>
+              <Button onClick={() => { setActivateOpen(false); handleActivate(); }} className='bg-[var(--color-success-600)] hover:bg-[var(--color-success-700)]'>فعال‌سازی</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {activeTab === 'config' && <ConfigTab agent={{ ...agent, status: agentStatus }} />}
         {activeTab === 'knowledge' && <KnowledgeTab bindings={agent.knowledgeBindings} />}
         {activeTab === 'tools' && <ToolsTab bindings={agent.toolBindings} />}
         {activeTab === 'memory' && <MemoryTab bindings={agent.memoryBindings} />}

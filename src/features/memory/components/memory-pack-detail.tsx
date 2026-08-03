@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Pencil, Trash2 } from 'lucide-react';
 import {
   type MemoryPackDetail as MemoryPackDetailType,
   MEMORY_TYPE_LABELS,
@@ -51,11 +52,22 @@ function formatDate(dateStr: string): string {
 
 export function MemoryPackDetail({ detail }: MemoryPackDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('config');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }
 
   const typeLabel = AGENT_TYPE_LABELS_LOCAL;
 
   return (
     <div className='flex flex-col gap-6'>
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg px-4 py-3 text-[var(--color-text-inverse)] shadow-lg transition-opacity duration-300 ${toast.type === 'success' ? 'bg-[var(--color-success-600)]' : 'bg-[var(--color-error-500)]'}`}>
+          {toast.message}
+        </div>
+      )}
       {/* Breadcrumb */}
       <nav className='flex items-center gap-2' aria-label='مسیر ناوبری'>
         <Link
@@ -112,6 +124,16 @@ export function MemoryPackDetail({ detail }: MemoryPackDetailProps) {
                 )}
               </div>
             </div>
+          </div>
+          <div className='flex items-center gap-2 shrink-0'>
+            <button type='button' onClick={() => showToast('ویرایش بسته حافظه', 'info')} className='inline-flex items-center gap-2 rounded-lg bg-[var(--color-surface-subtle)] px-4 py-2 font-[var(--font-weight-medium)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors duration-150' style={{ fontSize: 'var(--text-body-sm)' }}>
+              <Pencil className='h-4 w-4' />
+              ویرایش
+            </button>
+            <button type='button' onClick={() => showToast('بسته حافظه حذف شد')} className='inline-flex items-center gap-2 rounded-lg border border-[var(--color-error-500)] px-4 py-2 font-[var(--font-weight-medium)] text-[var(--color-error-500)] hover:bg-[var(--color-error-500)]/10 transition-colors duration-150' style={{ fontSize: 'var(--text-body-sm)' }}>
+              <Trash2 className='h-4 w-4' />
+              حذف
+            </button>
           </div>
         </div>
         {detail.description && (

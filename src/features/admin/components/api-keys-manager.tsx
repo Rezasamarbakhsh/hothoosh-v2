@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Key,
   DollarSign,
@@ -11,6 +11,7 @@ import {
   Copy,
   Ban,
   Trash2,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
@@ -53,11 +55,7 @@ function formatNumber(n: number): string {
 }
 
 function formatCurrency(n: number): string {
-  return new Intl.NumberFormat('fa-IR', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: n % 1 === 0 ? 0 : 2,
-  }).format(n);
+  return new Intl.NumberFormat('fa-IR', { style: 'currency', currency: 'USD', minimumFractionDigits: n % 1 === 0 ? 0 : 2 }).format(n);
 }
 
 function relativeTime(dateStr: string | null): string {
@@ -96,15 +94,26 @@ function statusColor(s: ApiKey['status']): string {
   }
 }
 
-/* ---- Summary Card ---- */
+/* ---- Toast ---- */
+function Toast({ message, type = 'success' }: { message: string; type?: 'success' | 'error' | 'info' }) {
+  const [visible, setVisible] = useState(true);
+  const colorMap = { success: 'bg-[var(--color-success-600)]', error: 'bg-[var(--color-error-500)]', info: 'bg-[var(--color-primary-500)]' };
+  return (
+    <div className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg px-4 py-3 text-[var(--color-text-inverse)] shadow-lg transition-opacity duration-300 ${colorMap[type]} ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setVisible(false)}>
+      <div className='flex items-center gap-2'>
+        <Check className='h-4 w-4' />
+        <span style={{ fontSize: 'var(--text-body-sm)' }}>{message}</span>
+      </div>
+    </div>
+  );
+}
 
+/* ---- Summary Card ---- */
 function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <Card className='glass-panel-elevated border-0'>
       <CardContent className='flex items-center gap-3 p-4'>
-        <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-50)] text-[var(--color-primary-400)]'>
-          {icon}
-        </div>
+        <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-50)] text-[var(--color-primary-400)]'>{icon}</div>
         <div>
           <p className='text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-caption-sm)' }}>{label}</p>
           <p className='font-[var(--font-weight-bold)] text-[var(--color-text-primary)]' style={{ fontSize: 'var(--text-heading-sm)' }}>{value}</p>
@@ -115,8 +124,7 @@ function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: str
 }
 
 /* ---- Add Key Dialog ---- */
-
-function AddKeyDialog() {
+function AddKeyDialog({ onAdded }: { onAdded: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [provider, setProvider] = useState<Provider | ''>('');
@@ -131,6 +139,7 @@ function AddKeyDialog() {
     setProvider('');
     setKey('');
     setBudget('');
+    onAdded();
   }
 
   return (
@@ -144,23 +153,17 @@ function AddKeyDialog() {
       <DialogContent className='glass-panel-elevated border-0 sm:max-w-md' dir='rtl'>
         <DialogHeader>
           <DialogTitle className='text-[var(--color-text-primary)]'>افزودن کلید API جدید</DialogTitle>
+          <DialogDescription className='text-[var(--color-text-muted)]'>کلید API جدیدی برای دسترسی به سرویس‌های هوش مصنوعی اضافه کنید.</DialogDescription>
         </DialogHeader>
         <div className='flex flex-col gap-4 pt-2'>
           <div className='flex flex-col gap-1.5'>
             <label className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>نام</label>
-            <Input
-              placeholder='مثلاً: پردازش اصلی'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className='border-[var(--color-border-default)] bg-[var(--color-background)]'
-            />
+            <Input placeholder='مثلاً: پردازش اصلی' value={name} onChange={(e) => setName(e.target.value)} className='border-[var(--color-border-default)] bg-[var(--color-background)]' />
           </div>
           <div className='flex flex-col gap-1.5'>
             <label className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>سرویس‌دهنده</label>
             <Select value={provider} onValueChange={(v) => setProvider(v as Provider)}>
-              <SelectTrigger className='border-[var(--color-border-default)] bg-[var(--color-background)]'>
-                <SelectValue placeholder='انتخاب سرویس‌دهنده' />
-              </SelectTrigger>
+              <SelectTrigger className='border-[var(--color-border-default)] bg-[var(--color-background)]'><SelectValue placeholder='انتخاب سرویس‌دهنده' /></SelectTrigger>
               <SelectContent>
                 {(Object.entries(PROVIDER_LABELS) as [Provider, string][]).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -170,28 +173,31 @@ function AddKeyDialog() {
           </div>
           <div className='flex flex-col gap-1.5'>
             <label className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>کلید API</label>
-            <Input
-              placeholder='sk-...'
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              dir='ltr'
-              className='text-left border-[var(--color-border-default)] bg-[var(--color-background)]'
-            />
+            <Input placeholder='sk-...' value={key} onChange={(e) => setKey(e.target.value)} dir='ltr' className='text-left border-[var(--color-border-default)] bg-[var(--color-background)]' />
           </div>
           <div className='flex flex-col gap-1.5'>
             <label className='text-[var(--color-text-secondary)]' style={{ fontSize: 'var(--text-body-sm)' }}>بودجه ماهانه (USD)</label>
-            <Input
-              type='number'
-              placeholder='۵۰۰'
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              dir='ltr'
-              className='text-left border-[var(--color-border-default)] bg-[var(--color-background)]'
-            />
+            <Input type='number' placeholder='۵۰۰' value={budget} onChange={(e) => setBudget(e.target.value)} dir='ltr' className='text-left border-[var(--color-border-default)] bg-[var(--color-background)]' />
           </div>
-          <Button onClick={handleSubmit} disabled={!canSubmit} className='mt-2'>
-            ذخیره کلید
-          </Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit} className='mt-2'>ذخیره کلید</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---- Confirm Dialog ---- */
+function ConfirmDialog({ open, onOpenChange, title, description, onConfirm }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; description: string; onConfirm: () => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className='glass-panel-elevated border-0 sm:max-w-md' dir='rtl'>
+        <DialogHeader>
+          <DialogTitle className='text-[var(--color-text-primary)]'>{title}</DialogTitle>
+          <DialogDescription className='text-[var(--color-text-secondary)]'>{description}</DialogDescription>
+        </DialogHeader>
+        <div className='flex items-center justify-end gap-2 pt-2'>
+          <Button variant='outline' onClick={() => onOpenChange(false)}>انصراف</Button>
+          <Button variant='destructive' onClick={() => { onConfirm(); onOpenChange(false); }}>تایید</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -199,27 +205,27 @@ function AddKeyDialog() {
 }
 
 /* ---- API Key Row ---- */
-
-function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
+function ApiKeyRow({ apiKey, onAction }: { apiKey: ApiKey; onAction: (id: string, action: string) => void }) {
   const budgetPercent = apiKey.monthlyBudget > 0 ? Math.min((apiKey.monthlySpend / apiKey.monthlyBudget) * 100, 100) : 0;
   const isOverBudget = apiKey.monthlyBudget > 0 && apiKey.monthlySpend >= apiKey.monthlyBudget * 0.9;
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(apiKey.key).then(() => onAction(apiKey.id, 'copy')).catch(() => onAction(apiKey.id, 'copy'));
+  }, [apiKey.id, apiKey.key, onAction]);
+
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <Card className='glass-panel-elevated border-0'>
       <CardContent className='flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between'>
-        {/* Left: provider + name + key */}
         <div className='flex min-w-0 flex-1 flex-col gap-2'>
           <div className='flex flex-wrap items-center gap-2'>
             <Badge variant='secondary' className={PROVIDER_COLORS[apiKey.provider]}>{PROVIDER_LABELS[apiKey.provider]}</Badge>
             <Badge variant='secondary' className={statusColor(apiKey.status)}>{statusLabel(apiKey.status)}</Badge>
-            <span className='font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]' style={{ fontSize: 'var(--text-body-md)' }}>
-              {apiKey.name}
-            </span>
+            <span className='font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]' style={{ fontSize: 'var(--text-body-md)' }}>{apiKey.name}</span>
           </div>
-          <p dir='ltr' className='font-mono text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-caption-sm)' }}>
-            {maskKey(apiKey.key)}
-          </p>
-          {/* Usage bar */}
+          <p dir='ltr' className='font-mono text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-caption-sm)' }}>{maskKey(apiKey.key)}</p>
           {apiKey.monthlyBudget > 0 && (
             <div className='flex items-center gap-3' style={{ maxWidth: 280 }}>
               <Progress value={budgetPercent} className='h-2 flex-1' />
@@ -229,32 +235,25 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
             </div>
           )}
         </div>
-
-        {/* Right: meta + actions */}
         <div className='flex items-center gap-4'>
           <div className='hidden text-end sm:block'>
             <p className='text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-caption-sm)' }}>{relativeTime(apiKey.lastUsedAt)}</p>
-            <p className='text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-caption-xs)' }}>
-              {formatNumber(apiKey.tokensUsed)} توکن
-            </p>
+            <p className='text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-caption-xs)' }}>{formatNumber(apiKey.tokensUsed)} توکن</p>
           </div>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='ghost' size='icon' className='h-8 w-8'>
-                <MoreHorizontal className='h-4 w-4' />
-              </Button>
+              <Button variant='ghost' size='icon' className='h-8 w-8'><MoreHorizontal className='h-4 w-4' /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
-              <DropdownMenuItem className='gap-2'>
+              <DropdownMenuItem className='gap-2' onClick={handleCopy}>
                 <Copy className='h-4 w-4' />
                 کپی کلید
               </DropdownMenuItem>
-              <DropdownMenuItem className='gap-2'>
+              <DropdownMenuItem className='gap-2' onClick={() => apiKey.status === 'active' && setRevokeOpen(true)} disabled={apiKey.status !== 'active'}>
                 <Ban className='h-4 w-4' />
                 ابطال
               </DropdownMenuItem>
-              <DropdownMenuItem className='gap-2 text-[var(--color-error-500)]'>
+              <DropdownMenuItem className='gap-2 text-[var(--color-error-500)]' onClick={() => setDeleteOpen(true)}>
                 <Trash2 className='h-4 w-4' />
                 حذف
               </DropdownMenuItem>
@@ -262,6 +261,20 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
           </DropdownMenu>
         </div>
       </CardContent>
+      <ConfirmDialog
+        open={revokeOpen}
+        onOpenChange={setRevokeOpen}
+        title='ابطال کلید API'
+        description={`آیا از ابطال کلید «${apiKey.name}» اطمینان دارید؟ این کلید دیگر قابل استفاده نخواهد بود.`}
+        onConfirm={() => onAction(apiKey.id, 'revoke')}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title='حذف کلید API'
+        description={`آیا از حذف دائمی کلید «${apiKey.name}» اطمینان دارید؟`}
+        onConfirm={() => onAction(apiKey.id, 'delete')}
+      />
     </Card>
   );
 }
@@ -269,36 +282,61 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
 /* ---- Main Component ---- */
 
 export function ApiKeysManager() {
-  const activeKeys = MOCK_API_KEYS.filter((k) => k.status === 'active').length;
-  const totalSpend = MOCK_API_KEYS.reduce((s, k) => s + k.monthlySpend, 0);
-  const totalRequests = MOCK_API_KEYS.reduce((s, k) => s + k.totalRequests, 0);
-  const totalTokens = MOCK_API_KEYS.reduce((s, k) => s + k.tokensUsed, 0);
+  const [keys, setKeys] = useState(MOCK_API_KEYS);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const handleAction = useCallback((id: string, action: string) => {
+    switch (action) {
+      case 'copy':
+        showToast('کلید در کلیپ‌بورد کپی شد');
+        break;
+      case 'revoke':
+        setKeys(prev => prev.map(k => k.id === id ? { ...k, status: 'revoked' as const } : k));
+        showToast('کلید API با موفقیت ابطال شد');
+        break;
+      case 'delete':
+        setKeys(prev => prev.filter(k => k.id !== id));
+        showToast('کلید API حذف شد');
+        break;
+    }
+  }, [showToast]);
+
+  const handleAdded = useCallback(() => {
+    showToast('کلید API جدید با موفقیت ذخیره شد');
+  }, [showToast]);
+
+  const activeKeys = keys.filter((k) => k.status === 'active').length;
+  const totalSpend = keys.reduce((s, k) => s + k.monthlySpend, 0);
+  const totalRequests = keys.reduce((s, k) => s + k.totalRequests, 0);
+  const totalTokens = keys.reduce((s, k) => s + k.tokensUsed, 0);
 
   return (
     <div className='flex flex-col gap-6'>
-      {/* Summary Cards */}
+      {toast && <Toast message={toast.message} type={toast.type} />}
       <div className='grid grid-cols-2 gap-3 lg:grid-cols-4'>
         <SummaryCard icon={<Key className='h-5 w-5' />} label='کلیدهای فعال' value={`${formatNumber(activeKeys)} کلید`} />
         <SummaryCard icon={<DollarSign className='h-5 w-5' />} label='هزینه ماهانه' value={formatCurrency(totalSpend)} />
         <SummaryCard icon={<Activity className='h-5 w-5' />} label='کل درخواست‌ها' value={formatNumber(totalRequests)} />
         <SummaryCard icon={<Cpu className='h-5 w-5' />} label='توکن مصرفی' value={formatNumber(totalTokens)} />
       </div>
-
       <Separator className='bg-[var(--color-border-default)]' />
-
-      {/* Header row */}
       <div className='flex items-center justify-between'>
-        <h2 className='font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]' style={{ fontSize: 'var(--text-heading-sm)' }}>
-          کلیدهای API
-        </h2>
-        <AddKeyDialog />
+        <h2 className='font-[var(--font-weight-semibold)] text-[var(--color-text-primary)]' style={{ fontSize: 'var(--text-heading-sm)' }}>کلیدهای API</h2>
+        <AddKeyDialog onAdded={handleAdded} />
       </div>
-
-      {/* Key list */}
       <div className='flex max-h-[600px] flex-col gap-3 overflow-y-auto pr-1'>
-        {MOCK_API_KEYS.map((k) => (
-          <ApiKeyRow key={k.id} apiKey={k} />
-        ))}
+        {keys.length === 0 ? (
+          <div className='py-12 text-center text-[var(--color-text-muted)]' style={{ fontSize: 'var(--text-body-sm)' }}>
+            کلید API‌ای وجود ندارد. با دکمه «افزودن کلید جدید» یک کلید اضافه کنید.
+          </div>
+        ) : (
+          keys.map((k) => <ApiKeyRow key={k.id} apiKey={k} onAction={handleAction} />)
+        )}
       </div>
     </div>
   );

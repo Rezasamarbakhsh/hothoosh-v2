@@ -156,7 +156,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </button>
 
         {/* Profile row */}
-        <div className='flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)]'>
+        <Link
+          href='/profile'
+          className='flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-surface-subtle)]'
+        >
           {/* Avatar */}
           <div
             className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-500)]/15 font-[var(--font-weight-semibold)] text-[var(--color-primary-400)]'
@@ -183,16 +186,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
 
           {/* Logout button */}
-          <button
-            type='button'
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            className='flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-error-500)]/10 hover:text-[var(--color-error-500)]'
-            aria-label='خروج از حساب'
-            title='خروج'
-          >
-            <LogOut size={15} />
-          </button>
-        </div>
+            <button
+              type='button'
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); signOut({ callbackUrl: '/login' }); }}
+              className='flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] transition-colors duration-[var(--duration-150)] hover:bg-[var(--color-error-500)]/10 hover:text-[var(--color-error-500)]'
+              aria-label='خروج از حساب'
+              title='خروج'
+            >
+              <LogOut size={15} />
+            </button>
+        </Link>
       </div>
     </aside>
   );

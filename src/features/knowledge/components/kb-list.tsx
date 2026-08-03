@@ -12,6 +12,7 @@ import {
   KB_STATUS_LABELS,
 } from '../types/knowledge.types';
 import { KBCard } from './kb-card';
+import { Plus } from 'lucide-react';
 
 interface KBListProps {
   knowledgeBases: KnowledgeBase[];
@@ -142,6 +143,7 @@ export function KBList({ knowledgeBases }: KBListProps) {
         </div>
         <button
           type="button"
+          onClick={() => alert('فرم ایجاد پایگاه دانش جدید — در نسخه بعدی فعال می‌شود')}
           className={
             'inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 ' +
             'font-[var(--font-weight-medium)] text-[var(--color-text-inverse)] ' +
@@ -149,9 +151,7 @@ export function KBList({ knowledgeBases }: KBListProps) {
           }
           style={{ fontSize: 'var(--text-body-sm)' }}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 2a6 6 0 100 12A6 6 0 008 2zM7 4.5h2v4H7v-4zm0 5.5h2v1.5H7V10z" fill="currentColor" />
-          </svg>
+          <Plus className="h-4 w-4" />
           پایگاه جدید
         </button>
       </div>
