@@ -27,7 +27,6 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name ?? '',
         };
-        // Note: role is attached via jwt callback using the user lookup below
       },
     }),
   ],
