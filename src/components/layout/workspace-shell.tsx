@@ -29,7 +29,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
   }, []);
 
   return (
-    <div className='flex h-dvh overflow-hidden bg-[var(--color-background)]'>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }} className='bg-[var(--color-background)]'>
       {/* Skip to content — Accessibility (UI-System §12.6) */}
       <a href='#main-content' className='skip-link'>
         رفتن به محتوای اصلی
@@ -62,17 +62,20 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
       )}
 
       {/* Main column */}
-      <div className='flex flex-1 flex-col overflow-hidden'>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <TopBar onMobileMenuToggle={handleMobileMenu} />
 
         <main
           id='main-content'
-          className={
-            'flex-1 ' +
-            (isChatRoute
-              ? 'overflow-hidden'
-              : 'overflow-y-auto p-4 md:p-6 xl:p-8')
-          }
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            minHeight: 0,
+            ...(isChatRoute
+              ? { overflow: 'hidden' }
+              : { overflowY: 'auto', padding: '1rem' }),
+          }}
           tabIndex={-1}
         >
           {children}
