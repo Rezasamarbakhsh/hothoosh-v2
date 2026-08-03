@@ -175,3 +175,48 @@ Stage Summary:
 - Feature-based organization: features/knowledge/{components,types,hooks,stores,services}/
 - Files created: 8 (3 feature components, 1 types file, 6 route files)
 - Files modified: 0
+
+---
+Task ID: 6
+Agent: Lead Software Architect
+Task: Feature 6 — Memory System (حافظه)
+
+Work Log:
+- Read PRD FR-MEM-001 through FR-MEM-005, Frontend-Arch §4.2 (memory route), §6.3 (memoryKeys factory)
+- Created memory types file with: MemoryPack, MemoryVersion, MemoryPackDetail interfaces
+- Created entity types: MemoryType (4: context/preference/knowledge/system), MemoryPackStatus (3: draft/active/archived), MemoryScope (4: workspace/brand/company/organization)
+- Created filter/sort types: MemoryTypeFilter, MemoryStatusFilter, MemoryScopeFilter, MemorySortField, SortOrder, MemoryFilters
+- Created Persian label/color maps for all types, statuses, and scopes; type icon SVG paths
+- Created 8 mock memory packs covering all 4 types, all 3 statuses, all 4 scopes with realistic Persian content
+- Created MOCK_MEMORY_DETAILS with version history (1-8 versions per pack) and bound agent references
+- Built MemoryPackCard molecule: type icon avatar, name, type/status/scope badges, auto-inject indicator, description (2-line clamp), stats (tokens/versions/injections), bound agent count, last injection relative time
+- Built MemoryPackGallery organism: search input, 3 filter pill rows (type 5, status 4, scope 5), sort button (5 fields, asc/desc toggle), quick stats row (4 cards: total/active/draft/archived), empty state, responsive 3-column grid
+- Built MemoryPackDetail organism with 4 tabs:
+  - Config: basic info grid (9 fields), full content display in RTL bordered box, relevance score progress bar (color-coded), auto-inject badge
+  - Versions: version timeline sorted desc, current version highlight ring, token diff indicator, content preview, author + date
+  - Bindings: linked agent cards with type badge, navigates to /agents/[id], empty state
+  - Usage: injection stats (3 big numbers), token usage progress bar against 8192 limit (color-coded), version timeline summary
+- Created /memory/page.tsx (Server Component with Persian metadata 'حافظه — هات‌هوش')
+- Created /memory/loading.tsx (stats + search + filter pills + 3-column card skeleton per Frontend-Arch §4.3)
+- Created /memory/error.tsx (Persian error, reset + back buttons)
+- Created /memory/[packId]/page.tsx (Server Component with dynamic metadata, 404 for invalid IDs)
+- Created /memory/[packId]/loading.tsx (breadcrumb + header + tabs + config grid skeleton)
+- Created /memory/[packId]/error.tsx (Persian error, reset + back to list)
+- Fixed error.tsx files: replaced useRouteError (react-router) with Next.js error boundary props ({ reset, error })
+- Fixed card component: stray backtick in href template literal
+- Fixed detail component: removed invalid AGENT_TYPE_LABELS import, used local copy
+- Worked around tool-level [m character stripping issue for directory names; used [packId] as dynamic segment
+- Next.js build verified: /memory (static), /memory/[packId] (dynamic) both registered
+- 0 TypeScript errors in src/
+
+Stage Summary:
+- Memory gallery is fully functional with client-side filtering (type/status/scope), sorting (5 fields), and search
+- 8 mock memory packs with realistic Persian content spanning all types, statuses, and hierarchical scopes (FR-MEM-005)
+- Memory detail page: 4-tab interface (config/versions/bindings/usage)
+- Version timeline shows diff indicators (token delta between versions) per FR-MEM-003
+- Usage tab visualizes token consumption against context window limit with color-coded progress bar
+- Auto-inject toggle indicator on cards and detail header per FR-MEM-004
+- Hierarchical memory scopes (workspace → brand → company → organization) per FR-MEM-005
+- Feature-based organization: features/memory/{components,types}/
+- Files created: 9 (3 feature components, 1 types file, 6 route files — page/loading/error for list + detail)
+- Files modified: 0
