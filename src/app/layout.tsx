@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme/theme-provider';
+import { SessionProvider } from '@/components/auth/session-provider';
 
 const vazirmatn = localFont({
   src: '../../public/fonts/Vazirmatn-Variable.woff2',
@@ -29,7 +30,9 @@ export default function RootLayout({
         <link rel="stylesheet" href="/glass.css" />
       </head>
       <body className={`${vazirmatn.variable} antialiased`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   );

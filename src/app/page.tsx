@@ -1,10 +1,8 @@
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-/**
- * Root page redirects to /login (unauthenticated) or /chat (authenticated).
- * Per Frontend-Architecture §4.1: "Redirects to /chat or /login based on auth status"
- * For now, always redirect to /login until auth middleware is implemented.
- */
-export default function RootPage() {
-  redirect('/login');
+export default async function RootPage() {
+  const session = await getServerSession(authOptions);
+  redirect(session ? '/chat' : '/login');
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession, signOut } from 'next-auth/react';
 import { ThemeToggle } from '../theme/theme-toggle';
 
 interface TopBarProps {
@@ -7,6 +8,12 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMobileMenuToggle }: TopBarProps) {
+  const { data: session } = useSession();
+  const userName = (session?.user as Record<string, unknown> | undefined)?.name as string | undefined;
+  const userRole = (session?.user as Record<string, unknown> | undefined)?.role as string | undefined;
+  const initial = userName ? userName.charAt(0) : '?';
+  const roleLabel = userRole === 'admin' ? 'مدیر' : 'کاربر';
+
   return (
     <header className="glass-panel-solid flex h-14 shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border-default)] px-4">
       {/* Mobile hamburger */}
@@ -49,18 +56,36 @@ export function TopBar({ onMobileMenuToggle }: TopBarProps) {
       </div>
 
       {/* End actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <ThemeToggle />
 
-        {/* User avatar placeholder */}
-        <button
-          type="button"
-          aria-label="پروفایل کاربر"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary-100)] font-[var(--font-weight-semibold)] text-[var(--color-primary-600)]"
-          style={{ fontSize: 'var(--text-body-sm)' }}
-        >
-          م
-        </button>
+        {/* User info + logout */}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end">
+            <span
+              className="font-[var(--font-weight-medium)] text-[var(--color-text-primary)] leading-tight"
+              style={{ fontSize: 'var(--text-caption-sm)' }}
+            >
+              {userName || 'کاربر'}
+            </span>
+            <span
+              className="text-[var(--color-text-muted)] leading-tight"
+              style={{ fontSize: 'var(--text-caption-xs)' }}
+            >
+              {roleLabel}
+            </span>
+          </div>
+          <button
+            type="button"
+            aria-label="خروج از حساب"
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary-100)] font-[var(--font-weight-semibold)] text-[var(--color-primary-600)] transition-opacity duration-[var(--duration-150)] hover:opacity-80"
+            style={{ fontSize: 'var(--text-body-sm)' }}
+            title={userName ? `${userName} — کلیک برای خروج` : 'پروفایل کاربر'}
+          >
+            {initial}
+          </button>
+        </div>
       </div>
     </header>
   );
