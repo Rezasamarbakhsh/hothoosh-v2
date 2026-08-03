@@ -47,10 +47,6 @@ interface Company {
   createdAt: string;
 }
 
-interface CompaniesResponse {
-  companies: Company[];
-}
-
 /* ---- Helpers ---- */
 
 function formatNumber(n: number): string {
@@ -514,9 +510,20 @@ export function CompaniesManager() {
       try {
         const res = await fetch('/api/admin/companies');
         if (!res.ok) throw new Error(`خطا در دریافت اطلاعات (${res.status})`);
-        const data: CompaniesResponse = await res.json();
+        const json = await res.json();
+        const list: Array<Record<string, unknown>> = json.data ?? [];
         if (!cancelled) {
-          setCompanies(data.companies);
+          setCompanies(
+            list.map((c) => ({
+              id: c.id as string,
+              name: c.name as string,
+              slug: c.slug as string,
+              description: (c.description as string) ?? null,
+              userCount: ((c._count as Record<string, number>)?.users) ?? 0,
+              isActive: c.isActive as boolean,
+              createdAt: c.createdAt as string,
+            })),
+          );
           setError(null);
         }
       } catch (err) {
